@@ -48,7 +48,7 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
       backgroundColor: const Color(0xFFFDF5E6), 
       appBar: AppBar(
         title: const Text('Wohnzimmer'),
-        
+
         centerTitle: true,
         backgroundColor: Colors.brown[300],
       ),
@@ -110,7 +110,7 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildActionButton(Icons.restaurant, "Füttern", _feed),
-                _buildActionButton(Icons.videogame_asset, "Spielen", _pet),
+                _buildActionButton(Icons.videogame_asset, "Streicheln", _pet),
               ],
             ),
           ),
