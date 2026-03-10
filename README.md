@@ -1,1 +1,0 @@
-# TamaGo_frontend
