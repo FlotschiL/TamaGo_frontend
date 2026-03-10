@@ -27,6 +27,7 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
   // Beispiel-Werte für das Tier
   double hunger = 0.7;
   double happiness = 0.5;
+  double energy = 0.8;
 
   void _feed() {
     setState(() {
@@ -34,7 +35,7 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
     });
   }
 
-  void _play() {
+  void _pet() {
     setState(() {
       happiness = (happiness + 0.1).clamp(0.0, 1.0);
     });
@@ -47,6 +48,7 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
       backgroundColor: const Color(0xFFFDF5E6), 
       appBar: AppBar(
         title: const Text('Wohnzimmer'),
+        
         centerTitle: true,
         backgroundColor: Colors.brown[300],
       ),
@@ -60,6 +62,7 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
               children: [
                 _buildStatBar("Hunger", hunger, Colors.green),
                 _buildStatBar("Glück", happiness, Colors.pink),
+                _buildStatBar("Energie", energy, Colors.blue),
               ],
             ),
           ),
@@ -107,7 +110,7 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildActionButton(Icons.restaurant, "Füttern", _feed),
-                _buildActionButton(Icons.videogame_asset, "Spielen", _play),
+                _buildActionButton(Icons.videogame_asset, "Spielen", _pet),
               ],
             ),
           ),
