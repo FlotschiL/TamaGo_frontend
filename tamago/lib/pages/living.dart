@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(const TamagotchiApp());
+  runApp(const LivingRoomScreen());
 }
-class TamagotchiApp extends StatelessWidget {
-  const TamagotchiApp({super.key});
+class LivingRoomScreen extends StatelessWidget {
+  const LivingRoomScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
