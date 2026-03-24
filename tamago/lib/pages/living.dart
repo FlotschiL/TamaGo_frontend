@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-
+import 'package:tamago/utils/injection_container.dart' as di;
+import 'package:get_it/get_it.dart';
+import 'package:tamago/utils/api_manager.dart';
+final sl = GetIt.instance; // sl stands for Service Locator
 void main() {
+  di.init();
   runApp(const LivingRoomScreen());
 }
 class LivingRoomScreen extends StatelessWidget {
@@ -28,16 +32,19 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
   double hunger = 0.7;
   double happiness = 0.5;
   double energy = 0.8;
-
+  final ApiClient _apiClient = GetIt.I<ApiClient>();
   void _feed() {
     setState(() {
       hunger = (hunger + 0.1).clamp(0.0, 1.0);
+      happiness = (happiness + 0.05).clamp(0.0, 1.0);
     });
   }
 
   void _pet() {
     setState(() {
       happiness = (happiness + 0.1).clamp(0.0, 1.0);
+      hunger = (hunger - 0.1).clamp(0.0, 1.0);
+      
     });
   }
 
