@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import "package:tamago/utils/login_screen.dart";
 import "package:tamago/pages/living.dart";
+import "package:tamago/pages/kitchen.dart";
+import "package:tamago/pages/bath.dart";
+import "package:tamago/pages/store.dart";
+
 void main() {
   runApp(const TamagotchiApp());
 }
@@ -41,6 +45,7 @@ class _MainGameNavigationState extends State<MainGameNavigation> {
     const LivingRoomScreen(),
     const KitchenScreen(),
     const BathroomScreen(),
+    const StoreScreen(),
   ];
 
   void _onTabTapped(int index) {
@@ -88,82 +93,10 @@ class _MainGameNavigationState extends State<MainGameNavigation> {
             icon: Icon(Icons.bathtub),
             label: 'Bathroom',
           ),
-        ],
-      ),
-    );
-  }
-}
-
-// ==========================================
-// 3. THE ROOMS (UI Placeholders)
-// ==========================================
-
-/*class LivingRoomScreen extends StatelessWidget {
-  const LivingRoomScreen({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.chair, size: 100, color: Colors.blueGrey),
-          const SizedBox(height: 20),
-          const Text('Living Room', style: TextStyle(fontSize: 24)),
-          const Text('Where your pet rests and gets petted.'),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () { /* Pet logic */ },
-            child: const Text('Pet the Tamagotchi'),
-          )
-        ],
-      ),
-    );
-  }
-}
-*/
-class KitchenScreen extends StatelessWidget {
-  const KitchenScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.restaurant, size: 100, color: Colors.orange),
-          const SizedBox(height: 20),
-          const Text('Kitchen', style: TextStyle(fontSize: 24)),
-          const Text('Time to eat!'),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () { /* Feed logic */ },
-            child: const Text('Feed'),
-          )
-        ],
-      ),
-    );
-  }
-}
-
-class BathroomScreen extends StatelessWidget {
-  const BathroomScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.bathtub, size: 100, color: Colors.lightBlue),
-          const SizedBox(height: 20),
-          const Text('Bathroom', style: TextStyle(fontSize: 24)),
-          const Text('Keep your pet clean.'),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () { /* Clean logic */ },
-            child: const Text('Clean'),
-          )
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart),
+            label: 'Store',
+          ),
         ],
       ),
     );
