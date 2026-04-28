@@ -13,5 +13,5 @@ void init() {
 void main() { 
   // Initialize dependency injection
   di.init(); 
-  runApp(const LivingRoomScreen());
+  runApp(const LivingRoomPage());
 }

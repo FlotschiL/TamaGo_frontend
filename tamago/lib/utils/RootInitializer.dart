@@ -20,27 +20,25 @@ class _RootInitializerState extends State<RootInitializer> {
   }
 
   Future<void> _handleStartup() async {
+    // Adding a tiny delay or yielding to the event loop can help
+    await Future.delayed(Duration.zero); 
+
     const storage = FlutterSecureStorage();
-    
-    // 1. Check for stored credentials
-    String? username = await storage.read(key: 'username');
-    String? password = await storage.read(key: 'password');
+    final username = await storage.read(key: 'username');
+    final password = await storage.read(key: 'password');
 
     if (username == null || password == null) {
-      _navigateToLogin();
-      return;
+      return _navigateToLogin();
     }
 
-    // 2. Call Login API 
-    // Assuming your api_manager is registered via GetIt or similar
     try {
-      // Replace 'GetIt.I<ApiManager>()' with your actual injection call
+      // Ensure ApiClient is actually registered in GetIt before this runs!
       final res = await GetIt.I<ApiClient>().login(username, password);
-
+      
       if (res) {
         _navigateToMain();
       } else {
-        _navigateToLogin(error: "Couldn't connect to server");
+        _navigateToLogin(error: "Session expired. Please login again.");
       }
     } catch (e) {
       _navigateToLogin(error: "Connection error: $e");
@@ -57,7 +55,7 @@ class _RootInitializerState extends State<RootInitializer> {
   void _navigateToMain() {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const TamagotchiApp()),
+      MaterialPageRoute(builder: (context) => const MainGameNavigation()),
     );
   }
 

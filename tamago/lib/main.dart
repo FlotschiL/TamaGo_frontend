@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 import "package:tamago/utils/RootInitializer.dart";
+import "package:tamago/utils/api_manager.dart";
 import "package:tamago/utils/injection_container.dart" as di;
 import "package:tamago/pages/living.dart";
 import "package:tamago/pages/kitchen.dart";
 import "package:tamago/pages/bath.dart";
 import "package:tamago/pages/store.dart";
+import 'package:tamago/Objects/game_state.dart';
+import 'package:get_it/get_it.dart';
 
 void main() {
-  // 1. Ensure Flutter framework is ready
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. "Connect" the container by running the registration logic
-  // Use 'await' if your init function is asynchronous
-  di.init();
-
+  try {
+    debugPrint("Initializing DI...");
+    di.init();
+    debugPrint("Starting App...");
+  } catch (e, stack) {
+    debugPrint("CRASH DURING INIT: $e");
+    debugPrint(stack.toString());
+  }
   runApp(const TamagotchiApp());
 }
 
@@ -28,7 +34,6 @@ class TamagotchiApp extends StatelessWidget {
         primarySwatch: Colors.teal,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      // Start at the Login Screen
       home: const RootInitializer(),
     );
   }
@@ -36,7 +41,7 @@ class TamagotchiApp extends StatelessWidget {
 
 
 // ==========================================
-// 2. MAIN NAVIGATION SHELL (The "Rooms")
+// MAIN NAVIGATION SHELL (The "Rooms")
 // ==========================================
 class MainGameNavigation extends StatefulWidget {
   const MainGameNavigation({super.key});
@@ -46,40 +51,148 @@ class MainGameNavigation extends StatefulWidget {
 }
 
 class _MainGameNavigationState extends State<MainGameNavigation> {
-  int _currentIndex = 0;
+  final ApiClient _apiClient = GetIt.I<ApiClient>();
 
-  // List of our "Room" widgets. 
-  // As your app grows, these will be moved to their own files.
+  int _currentIndex = 0;
+  GameState? _gameState;
+
   final List<Widget> _rooms = [
-    const LivingRoomScreen(),
+    const LivingRoomPage(),
     const KitchenScreen(),
     const BathroomScreen(),
     const StoreScreen(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadGameState();
+  }
+
+  Future<void> _loadGameState() async {
+    try {
+      final state = await _apiClient.getGameState();
+      setState(() => _gameState = state);
+    } catch (e) {
+      debugPrint("Failed to load game state in nav: $e");
+    }
+  }
+
   void _onTabTapped(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
+    setState(() => _currentIndex = index);
+  }
+
+  void _handleLogout() {
+    GetIt.I<ApiClient>().logout();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const RootInitializer()),
+      (route) => false,
+    );
+  }
+
+  Future<void> _showRenameDialog() async {
+    final controller = TextEditingController(text: _gameState?.name ?? '');
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename your pet'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Name',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (value) => Navigator.of(context).pop(value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (newName != null && newName.isNotEmpty && newName != _gameState?.name) {
+      try {
+        await _apiClient.rename(newName);
+        _loadGameState(); // Refresh to show new name
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to rename: $e')),
+          );
+        }
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Tamagotchi'),
+        backgroundColor: Colors.brown[300],
         centerTitle: true,
-        actions: [
-          // A placeholder for overall stats (like coins or level)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: Text('Level 5', style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _gameState?.name ?? 'Tamagotchi',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-          )
+            const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(Icons.edit, size: 18),
+              tooltip: 'Rename pet',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: _showRenameDialog,
+            ),
+          ],
+        ),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.account_circle, size: 28),
+            onSelected: (value) {
+              if (value == 'profile') { /* Navigator.push... */ }
+              if (value == 'settings') { /* Navigator.push... */ }
+              if (value == 'logout') _handleLogout();
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem(
+                value: 'profile',
+                child: ListTile(
+                  leading: Icon(Icons.person),
+                  title: Text('Profile'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'settings',
+                child: ListTile(
+                  leading: Icon(Icons.settings),
+                  title: Text('Settings'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'logout',
+                child: ListTile(
+                  leading: Icon(Icons.logout, color: Colors.red),
+                  title: Text('Logout', style: TextStyle(color: Colors.red)),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
-      // The body switches out based on the selected navigation tab
       body: IndexedStack(
         index: _currentIndex,
         children: _rooms,

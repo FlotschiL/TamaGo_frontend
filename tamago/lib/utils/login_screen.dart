@@ -16,6 +16,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+
   final _storage = const FlutterSecureStorage();
   bool _isLoading = false;
 
@@ -73,6 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Save credentials for auto-login next time
         await _storage.write(key: 'username', value: username);
         await _storage.write(key: 'password', value: password);
+
 
         if (!mounted) return;
         _showSnackBar(successMessage);

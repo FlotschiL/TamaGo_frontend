@@ -1,25 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:tamago/utils/injection_container.dart' as di;
 import 'package:get_it/get_it.dart';
 import 'package:tamago/utils/api_manager.dart';
+import 'package:tamago/Objects/game_state.dart';
 
-final sl = GetIt.instance; // sl stands for Service Locator
-void main() {
-  di.init();
-  runApp(const LivingRoomScreen());
-}
-class LivingRoomScreen extends StatelessWidget {
-  const LivingRoomScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.orange),
-      home: const LivingRoomPage(),
-    );
-  }
-}
 
 class LivingRoomPage extends StatefulWidget {
   const LivingRoomPage({super.key});
@@ -29,104 +12,140 @@ class LivingRoomPage extends StatefulWidget {
 }
 
 class _LivingRoomPageState extends State<LivingRoomPage> {
-  // Beispiel-Werte für das Tier
-  double hunger = 0.7;
-  double happiness = 0.5;
-  double energy = 0.8;
-  void _feed() {
-    setState(() {
-      hunger = (hunger + 0.1).clamp(0.0, 1.0);
-      happiness = (happiness + 0.05).clamp(0.0, 1.0);
-    });
+  final ApiClient _apiClient = GetIt.I<ApiClient>();
+
+  GameState? _gameState;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshGameState();
   }
 
-  void _pet() {
-    setState(() {
-      happiness = (happiness + 0.1).clamp(0.0, 1.0);
-      hunger = (hunger - 0.1).clamp(0.0, 1.0);
-      
-    });
+  Future<void> _refreshGameState() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+      debugPrint("Refreshing game state...");
+      final newState = await _apiClient.getGameState();
+      setState(() {
+        _gameState = newState;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = "Failed to load Tama: $e";
+      });
+    }
+  }
+
+  Future<void> _feed() async {
+    setState(() => _isLoading = true);
+    try {
+      final updatedState = await _apiClient.feed(1);
+      setState(() {
+        _gameState = updatedState;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _pet() async {
+    _refreshGameState();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // Ein gemütlicher Hintergrund
-      backgroundColor: const Color(0xFFFDF5E6), 
-      appBar: AppBar(
-        title: const Text('Wohnzimmer'),
-
-        centerTitle: true,
-        backgroundColor: Colors.brown[300],
-      ),
-      body: Column(
-        children: [
-          // --- 1. Statusleisten ---
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatBar("Hunger", hunger, Colors.green),
-                _buildStatBar("Glück", happiness, Colors.pink),
-                _buildStatBar("Energie", energy, Colors.blue),
-              ],
-            ),
+    if (_errorMessage != null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+              ElevatedButton(onPressed: _refreshGameState, child: const Text("Retry")),
+            ],
           ),
+        ),
+      );
+    }
 
-          const Spacer(),
+    if (_gameState == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-          // --- 2. Das Tier (PNG) ---
-          Center(
-            child: Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                // Ein kleiner Schatten unter dem Tier
-                Container(
-                  width: 150,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: Colors.black12,
-                    borderRadius: BorderRadius.circular(50),
+    return Scaffold(
+      backgroundColor: const Color(0xFFFDF5E6),
+      // No AppBar here — it lives in MainGameNavigation
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              // --- 1. Statusleisten ---
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildStatBar("Hunger", (_gameState!.hunger / 100), Colors.green),
+                    _buildStatBar("Gesundheit", (_gameState!.health / 100), Colors.pink),
+                    _buildStatBar("Status", _gameState!.alive ? 1.0 : 0.0, Colors.blue),
+                  ],
+                ),
+              ),
+
+              const Spacer(),
+
+              // --- 2. Das Tier ---
+              Center(
+                child: Opacity(
+                  opacity: _gameState!.alive ? 1.0 : 0.3,
+                  child: Image.asset(
+                    'assets/images/pet.png',
+                    width: 200,
+                    height: 200,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.pets, size: 100, color: Colors.brown),
                   ),
                 ),
-                //PNG Bild
-                Image.asset(
-                  'assets/images/pet.png', // Hier Pfad zu deinem PNG einfügen
-                  width: 200,
-                  height: 200,
-                  fit: BoxFit.contain,
-                  // Falls die Datei noch fehlt, zeigt ein Icon als Platzhalter
-                  errorBuilder: (context, error, stackTrace) => 
-                      const Icon(Icons.pets, size: 100, color: Colors.brown),
+              ),
+
+              const Spacer(),
+
+              // --- 3. Interaktions-Buttons ---
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 30),
+                decoration: BoxDecoration(
+                  color: Colors.brown[100],
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
                 ),
-              ],
-            ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildActionButton(Icons.restaurant, "Füttern", _gameState!.alive ? _feed : null),
+                    _buildActionButton(Icons.videogame_asset, "Streicheln", _gameState!.alive ? _pet : null),
+                  ],
+                ),
+              ),
+            ],
           ),
-
-          const Spacer(),
-
-          // --- 3. Interaktions-Buttons ---
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 30),
-            decoration: BoxDecoration(
-              color: Colors.brown[100],
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildActionButton(Icons.restaurant, "Füttern", _feed),
-                _buildActionButton(Icons.videogame_asset, "Streicheln", _pet),
-              ],
-            ),
-          ),
+          // Small overlay loader during actions
+          if (_isLoading)
+            const Positioned(top: 10, right: 10, child: CircularProgressIndicator(strokeWidth: 2)),
         ],
       ),
     );
   }
 
-  // Hilfs-Widget für die Stats
   Widget _buildStatBar(String label, double value, Color color) {
     return Column(
       children: [
@@ -135,7 +154,7 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
         SizedBox(
           width: 100,
           child: LinearProgressIndicator(
-            value: value,
+            value: value.clamp(0.0, 1.0),
             backgroundColor: Colors.grey[300],
             color: color,
             minHeight: 10,
@@ -145,8 +164,7 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
     );
   }
 
-  // Hilfs-Widget für die Buttons
-  Widget _buildActionButton(IconData icon, String label, VoidCallback onPressed) {
+  Widget _buildActionButton(IconData icon, String label, VoidCallback? onPressed) {
     return Column(
       children: [
         ElevatedButton(
@@ -154,6 +172,7 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
           style: ElevatedButton.styleFrom(
             shape: const CircleBorder(),
             padding: const EdgeInsets.all(20),
+            backgroundColor: onPressed == null ? Colors.grey : null,
           ),
           child: Icon(icon, size: 30),
         ),
