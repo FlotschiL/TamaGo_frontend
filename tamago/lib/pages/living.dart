@@ -29,7 +29,6 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
         _isLoading = true;
         _errorMessage = null;
       });
-      debugPrint("Refreshing game state...");
       final newState = await _apiClient.getGameState();
       setState(() {
         _gameState = newState;
@@ -38,7 +37,7 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _errorMessage = "Failed to load Tama: $e";
+        _errorMessage = "SYSTEM ERROR: $e";
       });
     }
   }
@@ -60,208 +59,236 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
     _refreshGameState();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+  // --- UI HELPERS (Moved outside build for clarity) ---
 
-    if (_errorMessage != null) {
-      return Scaffold(
-        backgroundColor: colorScheme.surface,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _errorMessage!,
-                style: TextStyle(color: colorScheme.error),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _refreshGameState,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colorScheme.primary,
-                  foregroundColor: colorScheme.onPrimary,
-                ),
-                child: const Text("Retry"),
-              ),
-            ],
+  Widget _buildPixelStatBar(String label, double value, Color barColor, ColorScheme colorScheme) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: colorScheme.onSurface),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          width: 80,
+          height: 16,
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            border: Border.all(color: colorScheme.onSurface, width: 2),
+          ),
+          child: FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: value.clamp(0.0, 1.0),
+            child: Container(color: barColor),
           ),
         ),
-      );
-    }
+      ],
+    );
+  }
 
-    if (_gameState == null) {
-      return Scaffold(
-        backgroundColor: colorScheme.surface,
-        body: Center(
-          child: CircularProgressIndicator(color: colorScheme.primary),
-        ),
-      );
-    }
+  Widget _buildPixelButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback? onPressed,
+    required Color color,
+    required ColorScheme colorScheme,
+  }) {
+    final bool isDisabled = onPressed == null;
 
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      // No AppBar here — it lives in MainGameNavigation
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              // --- 1. Statusleisten ---
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildStatBar(
-                      "Hunger",
-                      (_gameState!.hunger / 100),
-                      colorScheme.primary,
-                      colorScheme,
-                    ),
-                    _buildStatBar(
-                      "Gesundheit",
-                      (_gameState!.health / 100),
-                      colorScheme.secondary,
-                      colorScheme,
-                    ),
-                    _buildStatBar(
-                      "Status",
-                      _gameState!.alive ? 1.0 : 0.0,
-                      colorScheme.tertiary ?? colorScheme.primary,
-                      colorScheme,
-                    ),
-                  ],
-                ),
-              ),
-
-              const Spacer(),
-
-              // --- 2. Das Tier ---
-              Center(
-                child: Opacity(
-                  opacity: _gameState!.alive ? 1.0 : 0.3,
-                  child: Image.asset(
-                    'assets/images/pet.png',
-                    width: 200,
-                    height: 200,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.pets,
-                      size: 100,
-                      color: colorScheme.onBackground.withOpacity(0.6),
-                    ),
-                  ),
-                ),
-              ),
-
-              const Spacer(),
-
-              // --- 3. Interaktions-Buttons ---
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 30),
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(30),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildActionButton(
-                      Icons.restaurant,
-                      "Füttern",
-                      _gameState!.alive ? _feed : null,
-                      colorScheme,
-                    ),
-                    _buildActionButton(
-                      Icons.videogame_asset,
-                      "Streicheln",
-                      _gameState!.alive ? _pet : null,
-                      colorScheme,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDisabled ? colorScheme.surface.withOpacity(0.5) : color,
+          border: Border.all(
+            color: isDisabled ? colorScheme.onSurface.withOpacity(0.3) : colorScheme.onSurface,
+            width: 4,
           ),
-          // Small overlay loader during actions
-          if (_isLoading)
-            Positioned(
-              top: 10,
-              right: 10,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: colorScheme.primary,
+          boxShadow: isDisabled ? [] : [
+            BoxShadow(
+              color: colorScheme.onSurface,
+              offset: const Offset(4, 4),
+              blurRadius: 0,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon, 
+              color: isDisabled ? colorScheme.onSurface.withOpacity(0.3) : colorScheme.onPrimary
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: isDisabled ? colorScheme.onSurface.withOpacity(0.3) : colorScheme.onPrimary,
               ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildStatBar(
-    String label,
-    double value,
-    Color color,
-    ColorScheme colorScheme,
-  ) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 5),
-        SizedBox(
-          width: 100,
-          child: LinearProgressIndicator(
-            value: value.clamp(0.0, 1.0),
-            backgroundColor: colorScheme.surfaceVariant.withOpacity(0.5),
-            color: color,
-            minHeight: 10,
-            borderRadius: BorderRadius.circular(5),
-          ),
-        ),
-      ],
-    );
-  }
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
-  Widget _buildActionButton(
-    IconData icon,
-    String label,
-    VoidCallback? onPressed,
-    ColorScheme colorScheme,
-  ) {
-    return Column(
-      children: [
-        ElevatedButton(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            shape: const CircleBorder(),
-            padding: const EdgeInsets.all(20),
-            backgroundColor: onPressed == null
-                ? colorScheme.surfaceVariant
-                : colorScheme.primary,
-            foregroundColor: onPressed == null
-                ? colorScheme.onSurface.withOpacity(0.4)
-                : colorScheme.onPrimary,
-            disabledBackgroundColor: colorScheme.surfaceVariant,
-            disabledForegroundColor: colorScheme.onSurface.withOpacity(0.4),
+    // 1. Error State
+    if (_errorMessage != null) {
+      return Scaffold(
+        body: Center(
+          child: Container(
+            margin: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              border: Border.all(color: colorScheme.error, width: 4),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _errorMessage!.toUpperCase(),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colorScheme.error, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                _buildPixelButton(
+                  label: "RETRY",
+                  icon: Icons.refresh,
+                  onPressed: _refreshGameState,
+                  color: colorScheme.primary,
+                  colorScheme: colorScheme,
+                ),
+              ],
+            ),
           ),
-          child: Icon(icon, size: 30),
         ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(
-            color: colorScheme.onSurface,
-            fontWeight: onPressed == null ? FontWeight.normal : FontWeight.w500,
+      );
+    }
+
+    // 2. Initial Loading State
+    if (_gameState == null) {
+      return Scaffold(
+        body: Center(
+          child: Text(
+            "LOADING...",
+            style: TextStyle(
+              color: colorScheme.primary,
+              fontWeight: FontWeight.bold,
+              fontSize: 24,
+            ),
           ),
         ),
-      ],
+      );
+    }
+
+    // 3. Main Game UI
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Background Image
+          Positioned.fill(
+            child: Image.asset(
+              'assets/backgrounds/living.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+
+          // Main Content
+          Column(
+            children: [
+              // Dashboard (Status Bars)
+              Container(
+                padding: const EdgeInsets.only(top: 50, bottom: 20, left: 10, right: 10),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface.withOpacity(0.85),
+                  border: Border(bottom: BorderSide(color: colorScheme.onSurface, width: 4)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildPixelStatBar("HUNGER", _gameState!.hunger / 100, colorScheme.primary, colorScheme),
+                    _buildPixelStatBar("HEALTH", _gameState!.health / 100, Colors.green, colorScheme),
+                    _buildPixelStatBar("ALIVE", _gameState!.alive ? 1.0 : 0.0, colorScheme.secondary, colorScheme),
+                  ],
+                ),
+              ),
+
+              const Spacer(),
+
+              // The Pet
+              Center(
+                child: Opacity(
+                  opacity: _gameState!.alive ? 1.0 : 0.4,
+                  child: Image.asset(
+                    'assets/animations/BaseTama/BaseTama1.png',
+                    width: 220,
+                    height: 220,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Icon(
+                      Icons.cruelty_free, 
+                      size: 120, 
+                      color: colorScheme.onSurface
+                    ),
+                  ),
+                ),
+              ),
+
+              const Spacer(),
+
+              // Action Controls
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface.withOpacity(0.85),
+                  border: Border(top: BorderSide(color: colorScheme.onSurface, width: 6)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildPixelButton(
+                      label: "FEED",
+                      icon: Icons.restaurant,
+                      onPressed: _gameState!.alive ? _feed : null,
+                      color: colorScheme.primary,
+                      colorScheme: colorScheme,
+                    ),
+                    _buildPixelButton(
+                      label: "PET",
+                      icon: Icons.front_hand,
+                      onPressed: _gameState!.alive ? _pet : null,
+                      color: colorScheme.secondary,
+                      colorScheme: colorScheme,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Action Overlay Loader
+          if (_isLoading)
+            Positioned(
+              top: 120,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  color: colorScheme.primary,
+                  child: Text("BUSY...", style: TextStyle(color: colorScheme.onPrimary, fontSize: 12)),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

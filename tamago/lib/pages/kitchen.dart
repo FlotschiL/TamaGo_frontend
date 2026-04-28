@@ -74,28 +74,38 @@ class _KitchenScreenState extends State<KitchenScreen> {
           // TOP: The Tamagotchi
           // ==========================================
           Expanded(
-            flex: 3,
-            child: Center(
-              child: DragTarget<FoodItem>(
-                onAcceptWithDetails: (details) => _feedTamagotchi(details.data),
-                builder: (context, candidateData, rejectedData) {
-                  final isHovering = candidateData.isNotEmpty;
-                  return Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: isHovering ? colorScheme.primary.withOpacity(0.1) : null,
-                      border: isHovering ? Border.all(width: 4, color: colorScheme.primary) : null,
-                    ),
-                    child: Icon(
-                      isHovering ? Icons.face_retouching_natural : Icons.catching_pokemon,
-                      size: 140,
-                      color: colorScheme.primary,
-                    ),
-                  );
-                },
+  flex: 3,
+  child: Center(
+    child: DragTarget<FoodItem>(
+      onAcceptWithDetails: (details) => _feedTamagotchi(details.data),
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isHovering ? colorScheme.primary.withOpacity(0.1) : null,
+            border: isHovering ? Border.all(width: 4, color: colorScheme.primary) : null,
+          ),
+          child: Center(
+              child: Image.asset(
+                isHovering
+                    ? 'assets/animations/BaseTama/BaseTama2.png' // 👈 Asset shown when dragging over
+                    : 'assets/animations/BaseTama/BaseTama1.png', // 👈 Default asset
+                width: 220,
+                height: 220,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => Icon(
+                  isHovering ? Icons.face_retouching_natural : Icons.catching_pokemon,
+                  size: 120,
+                  color: colorScheme.onSurface,
+                ),
               ),
             ),
-          ),
+        );
+      },
+    ),
+  ),
+),
 
           // ==========================================
           // MIDDLE: The Fridge (Pixel-style shelf)

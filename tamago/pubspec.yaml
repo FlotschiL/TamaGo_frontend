@@ -67,6 +67,7 @@ flutter:
   assets:
    - assets/animations/BaseTama/BaseTama1.png
    - assets/animations/BaseTama/BaseTama2.png
+   - assets/backgrounds/living.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

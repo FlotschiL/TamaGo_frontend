@@ -11,7 +11,7 @@ abstract class AppColors {
 
   // UI Elements
   static const Color elementsPrimary = Color(0xFF505081);
-  static const Color elementsSecondary = Color(0xFF78A083);
+  static const Color elementsSecondary = Color(0xFF3F3F74);
 }
 final myColorScheme = ColorScheme(
     brightness: Brightness.light,

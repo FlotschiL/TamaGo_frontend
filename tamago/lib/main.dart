@@ -10,19 +10,9 @@ import 'package:tamago/Objects/game_state.dart';
 import 'package:get_it/get_it.dart';
 import "package:tamago/utils/app_colors.dart";
 
-
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  try {
-    debugPrint("Initializing DI...");
-    di.init();
-    debugPrint("Starting App...");
-  } catch (e, stack) {
-    debugPrint("CRASH DURING INIT: $e");
-    debugPrint(stack.toString());
-  }
-
+  di.init();
   runApp(const TamagotchiApp());
 }
 
@@ -33,23 +23,22 @@ class TamagotchiApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'TamaGo!',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-      useMaterial3: true,
-      colorScheme: myColorScheme,
-      // You can also define global text styles here
-      textTheme: const TextTheme(
-        bodyLarge: TextStyle(color: AppColors.textDark),
+        useMaterial3: false,
+        colorScheme: myColorScheme, // Your custom scheme
+        // Force a blocky/monospace font globally for that retro feel
+        fontFamily: 'monospace', 
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: AppColors.textDark, fontWeight: FontWeight.bold),
+          bodyMedium: TextStyle(color: AppColors.textDark),
+        ),
       ),
-    ),
       home: const RootInitializer(),
     );
   }
 }
 
-
-// ==========================================
-// MAIN NAVIGATION SHELL (The "Rooms")
-// ==========================================
 class MainGameNavigation extends StatefulWidget {
   const MainGameNavigation({super.key});
 
@@ -59,14 +48,13 @@ class MainGameNavigation extends StatefulWidget {
 
 class _MainGameNavigationState extends State<MainGameNavigation> {
   final ApiClient _apiClient = GetIt.I<ApiClient>();
-
   int _currentIndex = 0;
   GameState? _gameState;
 
   final List<Widget> _rooms = [
     const LivingRoomPage(),
     const KitchenScreen(),
-    const BathroomScreen(),
+    const BathroomPage(), // Assuming this is your bath page
     const StoreScreen(),
   ];
 
@@ -81,12 +69,8 @@ class _MainGameNavigationState extends State<MainGameNavigation> {
       final state = await _apiClient.getGameState();
       setState(() => _gameState = state);
     } catch (e) {
-      debugPrint("Failed to load game state in nav: $e");
+      debugPrint("Failed to load: $e");
     }
-  }
-
-  void _onTabTapped(int index) {
-    setState(() => _currentIndex = index);
   }
 
   void _handleLogout() {
@@ -97,137 +81,183 @@ class _MainGameNavigationState extends State<MainGameNavigation> {
     );
   }
 
+  // --- RETRO RENAME DIALOG ---
   Future<void> _showRenameDialog() async {
     final controller = TextEditingController(text: _gameState?.name ?? '');
-    final newName = await showDialog<String>(
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final newName = await showGeneralDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rename your pet'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Name',
-            border: OutlineInputBorder(),
+      barrierDismissible: true,
+      barrierLabel: '',
+      pageBuilder: (context, anim1, anim2) => Container(), // Required
+      transitionBuilder: (context, a1, a2, child) {
+        return Transform.scale(
+          scale: a1.value,
+          child: AlertDialog(
+            backgroundColor: colorScheme.surface,
+            shape: Border.all(color: colorScheme.onSurface, width: 4), // Sharp corners
+            title: Text("NAME_YOUR_PET", style: TextStyle(color: colorScheme.primary, fontSize: 14)),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: colorScheme.background,
+                border: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: colorScheme.onSurface, width: 2)),
+              ),
+            ),
+            actions: [
+              _PixelActionBtn(
+                label: "CANCEL", 
+                onPressed: () => Navigator.pop(context), 
+                color: colorScheme.surface
+              ),
+              _PixelActionBtn(
+                label: "SAVE", 
+                onPressed: () => Navigator.pop(context, controller.text.trim()), 
+                color: colorScheme.secondary
+              ),
+            ],
           ),
-          onSubmitted: (value) => Navigator.of(context).pop(value.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+        );
+      },
     );
 
     if (newName != null && newName.isNotEmpty && newName != _gameState?.name) {
       try {
         await _apiClient.rename(newName);
-        _loadGameState(); // Refresh to show new name
+        _loadGameState();
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to rename: $e')),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('RENAME_FAILED')));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              _gameState?.name ?? 'Tamagotchi',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(60),
+        child: Container(
+          decoration: BoxDecoration(
+            color: colorScheme.primary,
+            border: Border(bottom: BorderSide(color: colorScheme.onSurface, width: 4)),
+          ),
+          child: AppBar(
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            centerTitle: true,
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  (_gameState?.name ?? 'TAMAGOTCHI').toUpperCase(),
+                  style: TextStyle(color: colorScheme.onPrimary, fontWeight: FontWeight.bold, letterSpacing: 1),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit, size: 18),
+                  onPressed: _showRenameDialog,
+                ),
+              ],
             ),
-            const SizedBox(width: 4),
-            IconButton(
-              icon: const Icon(Icons.edit, size: 18),
-              tooltip: 'Rename pet',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              onPressed: _showRenameDialog,
-            ),
-          ],
-        ),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.account_circle, size: 28),
-            onSelected: (value) {
-              if (value == 'profile') { /* Navigator.push... */ }
-              if (value == 'settings') { /* Navigator.push... */ }
-              if (value == 'logout') _handleLogout();
-            },
-            itemBuilder: (BuildContext context) => [
-              const PopupMenuItem(
-                value: 'profile',
-                child: ListTile(
-                  leading: Icon(Icons.person),
-                  title: Text('Profile'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'settings',
-                child: ListTile(
-                  leading: Icon(Icons.settings),
-                  title: Text('Settings'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'logout',
-                child: ListTile(
-                  leading: Icon(Icons.logout, color: Colors.red),
-                  title: Text('Logout', style: TextStyle(color: Colors.red)),
-                  contentPadding: EdgeInsets.zero,
-                ),
+            actions: [
+              PopupMenuButton<String>(
+                icon: Icon(Icons.account_box, color: colorScheme.onPrimary, size: 30),
+                color: colorScheme.surface,
+                offset: const Offset(0, 50),
+                shape: Border.all(color: colorScheme.onSurface, width: 3), // Pixel menu
+                onSelected: (value) {
+                  if (value == 'logout') _handleLogout();
+                },
+                itemBuilder: (context) => [
+                  _buildPixelPopupItem('profile', Icons.person, 'PROFILE'),
+                  _buildPixelPopupItem('settings', Icons.settings, 'SETTINGS'),
+                  const PopupMenuDivider(height: 1),
+                  _buildPixelPopupItem('logout', Icons.logout, 'LOGOUT', isDestructive: true),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
       body: IndexedStack(
         index: _currentIndex,
         children: _rooms,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Theme.of(context).colorScheme.secondary,
-        currentIndex: _currentIndex,
-        onTap: _onTabTapped,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chair),
-            label: 'Living Room',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.restaurant),
-            label: 'Kitchen',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bathtub),
-            label: 'Bathroom',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart),
-            label: 'Store',
-          ),
+      // --- CUSTOM PIXEL BOTTOM NAV ---
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: colorScheme.onSurface, // The "Outline" color
+          border: Border(top: BorderSide(color: colorScheme.onSurface, width: 2)),
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: colorScheme.primary,
+          type: BottomNavigationBarType.fixed,
+          currentIndex: _currentIndex,
+          onTap: (index) => setState(() => _currentIndex = index),
+          selectedItemColor: colorScheme.onPrimary,
+          unselectedItemColor: colorScheme.onPrimary.withOpacity(0.5),
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+          unselectedLabelStyle: const TextStyle(fontSize: 10),
+          elevation: 0,
+          items: [
+            _buildPixelNavItem(Icons.chair, 'HOME'),
+            _buildPixelNavItem(Icons.restaurant, 'EAT'),
+            _buildPixelNavItem(Icons.bathtub, 'WASH'),
+            _buildPixelNavItem(Icons.shopping_cart, 'SHOP'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  BottomNavigationBarItem _buildPixelNavItem(IconData icon, String label) {
+    return BottomNavigationBarItem(
+      icon: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Icon(icon, size: 28),
+      ),
+      label: label,
+    );
+  }
+
+  PopupMenuItem<String> _buildPixelPopupItem(String value, IconData icon, String label, {bool isDestructive = false}) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, color: isDestructive ? Colors.red : null, size: 18),
+          const SizedBox(width: 10),
+          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDestructive ? Colors.red : null)),
         ],
+      ),
+    );
+  }
+}
+
+// --- Internal Helper for Pixel Buttons ---
+class _PixelActionBtn extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+  final Color color;
+
+  const _PixelActionBtn({required this.label, required this.onPressed, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color,
+          border: Border.all(color: Theme.of(context).colorScheme.onSurface, width: 2),
+        ),
+        child: Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
       ),
     );
   }
