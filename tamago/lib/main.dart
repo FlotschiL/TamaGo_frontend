@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
-import "package:tamago/utils/login_screen.dart";
+import "package:tamago/utils/RootInitializer.dart";
+import "package:tamago/utils/injection_container.dart" as di;
 import "package:tamago/pages/living.dart";
 import "package:tamago/pages/kitchen.dart";
 import "package:tamago/pages/bath.dart";
 import "package:tamago/pages/store.dart";
 
 void main() {
+  // 1. Ensure Flutter framework is ready
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. "Connect" the container by running the registration logic
+  // Use 'await' if your init function is asynchronous
+  di.init();
+
   runApp(const TamagotchiApp());
 }
 
@@ -15,16 +23,17 @@ class TamagotchiApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Tamagotchi Clone',
+      title: 'TamaGo!',
       theme: ThemeData(
         primarySwatch: Colors.teal,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       // Start at the Login Screen
-      home: const LoginScreen(),
+      home: const RootInitializer(),
     );
   }
 }
+
 
 // ==========================================
 // 2. MAIN NAVIGATION SHELL (The "Rooms")

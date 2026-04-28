@@ -77,6 +77,24 @@ class ApiClient {
       throw _handleError(e);
     }
   }
+  Future<bool> login(String username,  String password) async {
+    try {
+      late Response res;
+      res =  await _dio.post('/login', queryParameters: {'username': username, 'password': password});
+      return res.statusCode == 200;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+  Future<bool> register(String username,  String password) async {
+    try {
+      late Response res;
+      res =  await _dio.post('/register', data: {'username': username, 'password': password});
+      return res.statusCode == 200;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
 
   // Custom Error Handling
   dynamic _handleError(DioException e) {
