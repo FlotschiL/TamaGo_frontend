@@ -1,142 +1,116 @@
 import 'package:flutter/material.dart';
 import 'package:tamago/pages/chatnavigation.dart';
 
-
-class ChatMessage {
-  final String text;
-  final String senderName;
-  final bool isUser; // Um zu entscheiden, ob die Nachricht rechts oder links steht
-
-  ChatMessage({
-    required this.text, 
-    required this.senderName, 
-    this.isUser = false
-  });
+// Lokale Kopie der AppColors für die Unabhängigkeit
+abstract class AppColors {
+  static const Color textLight = Color(0xFFF7F5ED);
+  static const Color textDark = Color(0xFF161616);
+  static const Color bgPrimary = Color(0xFFFDF9AC);
+  static const Color bgSecondary = Color(0xFFDAD68F);
+  static const Color elementsPrimary = Color(0xFF505081);
+  static const Color elementsSecondary = Color(0xFF78A083);
 }
-
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
-
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
-  final List<ChatMessage> _messages = [
-    ChatMessage(text: "Hallo! Wie geht es dir heute?", senderName: "Tama"),
+  final List<Map<String, dynamic>> _messages = [
+    {"text": "Hallo! Wie geht es dir?", "sender": "Tama", "isUser": false},
   ];
+
+  // Styles gemäß Style-Guide
+  TextStyle get _bodyStyle => const TextStyle(
+      fontFamily: 'JosefinSans', fontWeight: FontWeight.w300, fontStyle: FontStyle.italic, color: AppColors.textDark);
+  
+  TextStyle get _headingStyle => const TextStyle(
+      fontFamily: 'JosefinSans', fontWeight: FontWeight.w400, color: AppColors.textDark);
 
   void _handleSend() {
     if (_controller.text.isEmpty) return;
-
     setState(() {
-      // 1. Nachricht des Users hinzufügen
-      _messages.insert(0, ChatMessage(
-        text: _controller.text,
-        senderName: "Du",
-        isUser: true,
-      ));
+      _messages.insert(0, {"text": _controller.text, "sender": "Du", "isUser": true});
     });
-
-    String userText = _controller.text;
     _controller.clear();
-
-    // 2. Mockup-Antwort vom Tamagotchi (nach einer kurzen Verzögerung)
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() {
-          _messages.insert(0, ChatMessage(
-            text: "Bitte füttern!",
-            senderName: "Tama",
-            isUser: false,
-          ));
-        });
-      }
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.bgPrimary,
       appBar: AppBar(
-        title: const Text("Chat mit Tama"),
-        backgroundColor: Colors.teal,
+        title: Text("Chat mit Tama", style: _headingStyle.copyWith(color: AppColors.textLight)),
+        backgroundColor: AppColors.elementsPrimary,
+        elevation: 0,
       ),
       body: Column(
         children: [
-          // Nachrichten-Liste
           Expanded(
             child: ListView.builder(
-              reverse: true, // Neue Nachrichten unten anzeigen
-              padding: const EdgeInsets.all(10),
+              reverse: true,
+              padding: const EdgeInsets.all(16),
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 final msg = _messages[index];
-                return _buildChatBubble(msg);
+                final isUser = msg['isUser'] as bool;
+                
+                return Align(
+                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      // User = Secondary (Grün), Tama = Background Secondary (Beige)
+                      color: isUser ? AppColors.elementsSecondary : AppColors.bgSecondary,
+                      borderRadius: BorderRadius.circular(4), // Guide: 4px für Textboxen/Bubbles
+                    ),
+                    child: Text(msg['text'], style: _bodyStyle.copyWith(
+                      color: isUser ? AppColors.textLight : AppColors.textDark
+                    )),
+                  ),
+                );
               },
             ),
           ),
-          
-          // Eingabebereich
-          _buildInputArea(),
+          _buildInput(),
         ],
       ),
-      floatingActionButton: const ChatNavigationTrigger(color: Colors.lightBlue),
+      floatingActionButton: const ChatNavigationTrigger(),
     );
   }
 
-  // Hilfs-Widget für die Sprechblasen
-  Widget _buildChatBubble(ChatMessage msg) {
-    return Align(
-      alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 5),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: msg.isUser ? Colors.teal.shade100 : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(15).copyWith(
-            bottomRight: msg.isUser ? Radius.zero : const Radius.circular(15),
-            bottomLeft: msg.isUser ? const Radius.circular(15) : Radius.zero,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              msg.senderName,
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
-            ),
-            const SizedBox(height: 4),
-            Text(msg.text),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Hilfs-Widget für das Textfeld
-  Widget _buildInputArea() {
+  Widget _buildInput() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      color: Colors.white,
+      padding: const EdgeInsets.all(12),
+      color: AppColors.bgSecondary,
       child: Row(
         children: [
           Expanded(
             child: TextField(
               controller: _controller,
-              decoration: const InputDecoration(
+              style: _bodyStyle,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: AppColors.bgPrimary,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide.none),
                 hintText: "Schreib etwas...",
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                hintStyle: _bodyStyle.copyWith(
+                  color: AppColors.textDark.withOpacity(0.5),
+                ),
               ),
-              onSubmitted: (_) => _handleSend(),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.send, color: Colors.teal),
-            onPressed: _handleSend,
+          const SizedBox(width: 8),
+          Container(
+            decoration: BoxDecoration(color: AppColors.elementsPrimary, borderRadius: BorderRadius.circular(25)),
+            child: IconButton(
+              icon: const Icon(Icons.send, color: AppColors.textLight),
+              onPressed: _handleSend,
+            ),
           ),
         ],
       ),
