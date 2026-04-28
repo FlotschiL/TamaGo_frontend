@@ -3,7 +3,6 @@ import 'package:get_it/get_it.dart';
 import 'package:tamago/utils/api_manager.dart';
 import 'package:tamago/Objects/game_state.dart';
 
-
 class LivingRoomPage extends StatefulWidget {
   const LivingRoomPage({super.key});
 
@@ -63,14 +62,28 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (_errorMessage != null) {
       return Scaffold(
+        backgroundColor: colorScheme.surface,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-              ElevatedButton(onPressed: _refreshGameState, child: const Text("Retry")),
+              Text(
+                _errorMessage!,
+                style: TextStyle(color: colorScheme.error),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _refreshGameState,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: colorScheme.onPrimary,
+                ),
+                child: const Text("Retry"),
+              ),
             ],
           ),
         ),
@@ -78,13 +91,16 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
     }
 
     if (_gameState == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: colorScheme.surface,
+        body: Center(
+          child: CircularProgressIndicator(color: colorScheme.primary),
+        ),
       );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFDF5E6),
+      backgroundColor: colorScheme.surface,
       // No AppBar here — it lives in MainGameNavigation
       body: Stack(
         children: [
@@ -96,9 +112,24 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatBar("Hunger", (_gameState!.hunger / 100), Colors.green),
-                    _buildStatBar("Gesundheit", (_gameState!.health / 100), Colors.pink),
-                    _buildStatBar("Status", _gameState!.alive ? 1.0 : 0.0, Colors.blue),
+                    _buildStatBar(
+                      "Hunger",
+                      (_gameState!.hunger / 100),
+                      colorScheme.primary,
+                      colorScheme,
+                    ),
+                    _buildStatBar(
+                      "Gesundheit",
+                      (_gameState!.health / 100),
+                      colorScheme.secondary,
+                      colorScheme,
+                    ),
+                    _buildStatBar(
+                      "Status",
+                      _gameState!.alive ? 1.0 : 0.0,
+                      colorScheme.tertiary ?? colorScheme.primary,
+                      colorScheme,
+                    ),
                   ],
                 ),
               ),
@@ -113,8 +144,11 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
                     'assets/images/pet.png',
                     width: 200,
                     height: 200,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Icon(Icons.pets, size: 100, color: Colors.brown),
+                    errorBuilder: (context, error, stackTrace) => Icon(
+                      Icons.pets,
+                      size: 100,
+                      color: colorScheme.onBackground.withOpacity(0.6),
+                    ),
                   ),
                 ),
               ),
@@ -125,14 +159,26 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 30),
                 decoration: BoxDecoration(
-                  color: Colors.brown[100],
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                  color: colorScheme.surface,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(30),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildActionButton(Icons.restaurant, "Füttern", _gameState!.alive ? _feed : null),
-                    _buildActionButton(Icons.videogame_asset, "Streicheln", _gameState!.alive ? _pet : null),
+                    _buildActionButton(
+                      Icons.restaurant,
+                      "Füttern",
+                      _gameState!.alive ? _feed : null,
+                      colorScheme,
+                    ),
+                    _buildActionButton(
+                      Icons.videogame_asset,
+                      "Streicheln",
+                      _gameState!.alive ? _pet : null,
+                      colorScheme,
+                    ),
                   ],
                 ),
               ),
@@ -140,31 +186,55 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
           ),
           // Small overlay loader during actions
           if (_isLoading)
-            const Positioned(top: 10, right: 10, child: CircularProgressIndicator(strokeWidth: 2)),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: colorScheme.primary,
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildStatBar(String label, double value, Color color) {
+  Widget _buildStatBar(
+    String label,
+    double value,
+    Color color,
+    ColorScheme colorScheme,
+  ) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: colorScheme.onSurface,
+          ),
+        ),
         const SizedBox(height: 5),
         SizedBox(
           width: 100,
           child: LinearProgressIndicator(
             value: value.clamp(0.0, 1.0),
-            backgroundColor: Colors.grey[300],
+            backgroundColor: colorScheme.surfaceVariant.withOpacity(0.5),
             color: color,
             minHeight: 10,
+            borderRadius: BorderRadius.circular(5),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildActionButton(IconData icon, String label, VoidCallback? onPressed) {
+  Widget _buildActionButton(
+    IconData icon,
+    String label,
+    VoidCallback? onPressed,
+    ColorScheme colorScheme,
+  ) {
     return Column(
       children: [
         ElevatedButton(
@@ -172,12 +242,25 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
           style: ElevatedButton.styleFrom(
             shape: const CircleBorder(),
             padding: const EdgeInsets.all(20),
-            backgroundColor: onPressed == null ? Colors.grey : null,
+            backgroundColor: onPressed == null
+                ? colorScheme.surfaceVariant
+                : colorScheme.primary,
+            foregroundColor: onPressed == null
+                ? colorScheme.onSurface.withOpacity(0.4)
+                : colorScheme.onPrimary,
+            disabledBackgroundColor: colorScheme.surfaceVariant,
+            disabledForegroundColor: colorScheme.onSurface.withOpacity(0.4),
           ),
           child: Icon(icon, size: 30),
         ),
         const SizedBox(height: 8),
-        Text(label),
+        Text(
+          label,
+          style: TextStyle(
+            color: colorScheme.onSurface,
+            fontWeight: onPressed == null ? FontWeight.normal : FontWeight.w500,
+          ),
+        ),
       ],
     );
   }

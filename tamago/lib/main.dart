@@ -8,6 +8,8 @@ import "package:tamago/pages/bath.dart";
 import "package:tamago/pages/store.dart";
 import 'package:tamago/Objects/game_state.dart';
 import 'package:get_it/get_it.dart';
+import "package:tamago/utils/app_colors.dart";
+
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +22,7 @@ void main() {
     debugPrint("CRASH DURING INIT: $e");
     debugPrint(stack.toString());
   }
+
   runApp(const TamagotchiApp());
 }
 
@@ -31,9 +34,13 @@ class TamagotchiApp extends StatelessWidget {
     return MaterialApp(
       title: 'TamaGo!',
       theme: ThemeData(
-        primarySwatch: Colors.teal,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
+      useMaterial3: true,
+      colorScheme: myColorScheme,
+      // You can also define global text styles here
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(color: AppColors.textDark),
       ),
+    ),
       home: const RootInitializer(),
     );
   }
@@ -136,7 +143,7 @@ class _MainGameNavigationState extends State<MainGameNavigation> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.brown[300],
+        backgroundColor: Theme.of(context).colorScheme.primary,
         centerTitle: true,
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -198,9 +205,10 @@ class _MainGameNavigationState extends State<MainGameNavigation> {
         children: _rooms,
       ),
       bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Theme.of(context).colorScheme.secondary,
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
-        selectedItemColor: Colors.teal,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
