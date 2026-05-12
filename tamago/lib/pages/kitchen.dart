@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:tamago/pages/chatnavigation.dart';
 // --- Mocking your AppColors for the example to compile ---
 
 class FoodItem {
@@ -68,6 +68,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
 
     return Scaffold(
       backgroundColor: colorScheme.background,
+      floatingActionButton: const ChatNavigationTrigger(),
       body: Column(
         children: [
           // ==========================================
