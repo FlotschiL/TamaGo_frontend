@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import 'package:tamago/utils/api_manager.dart';
+import 'package:tamago/utils/services/api_manager.dart';
 import 'package:tamago/Objects/game_state.dart';
 
 class LivingRoomPage extends StatefulWidget {

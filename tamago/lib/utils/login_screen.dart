@@ -3,7 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 // import 'package:tamago/api/api_manager.dart'; // Ensure this is imported
 import 'package:tamago/main.dart';
-import 'package:tamago/utils/api_manager.dart'; 
+import 'package:tamago/utils/services/api_manager.dart'; 
 
 class LoginScreen extends StatefulWidget {
   final String? errorMessage;

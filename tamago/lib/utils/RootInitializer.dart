@@ -3,7 +3,7 @@ import "package:tamago/main.dart";
 import "package:tamago/utils/login_screen.dart";
 import "package:flutter_secure_storage/flutter_secure_storage.dart";
 import 'package:get_it/get_it.dart';
-import 'package:tamago/utils/api_manager.dart';
+import 'package:tamago/utils/services/api_manager.dart';
 
 class RootInitializer extends StatefulWidget {
   const RootInitializer({super.key});

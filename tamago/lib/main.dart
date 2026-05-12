@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import "package:tamago/utils/RootInitializer.dart";
-import "package:tamago/utils/api_manager.dart";
+import "package:tamago/utils/services/api_manager.dart";
 import "package:tamago/utils/injection_container.dart" as di;
 import "package:tamago/pages/living.dart";
 import "package:tamago/pages/kitchen.dart";

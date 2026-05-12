@@ -1,4 +1,4 @@
-import 'package:tamago/utils/api_manager.dart';
+import 'package:tamago/utils/services/api_manager.dart';
 
 class UserRepository {
   final ApiClient _apiClient;
