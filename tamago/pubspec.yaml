@@ -31,6 +31,9 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.1.0 # Or the latest version
+  get_it: ^7.6.0 # Or the latest version
+  dio: ^5.0.0 # Or the latest version
+  flutter_secure_storage: ^9.0.0 # Or the latest version
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -64,6 +67,7 @@ flutter:
   assets:
    - assets/animations/BaseTama/BaseTama1.png
    - assets/animations/BaseTama/BaseTama2.png
+   - assets/backgrounds/living.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

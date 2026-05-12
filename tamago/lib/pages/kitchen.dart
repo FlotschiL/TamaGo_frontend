@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-// 1. A simple data model for our Food
+// --- Mocking your AppColors for the example to compile ---
+
 class FoodItem {
   final String id;
   final String name;
@@ -18,7 +19,6 @@ class KitchenScreen extends StatefulWidget {
 }
 
 class _KitchenScreenState extends State<KitchenScreen> {
-  // State variables
   List<FoodItem> _fridgeInventory = [];
   bool _isLoading = true;
   FoodItem? _selectedFood;
@@ -29,18 +29,14 @@ class _KitchenScreenState extends State<KitchenScreen> {
     _fetchFridgeInventory();
   }
 
-  // 2. Mock API Call to get food
   Future<void> _fetchFridgeInventory() async {
-    // Simulate network delay
     await Future.delayed(const Duration(seconds: 1));
-    
     setState(() {
       _fridgeInventory = [
-        FoodItem(id: '1', name: 'Apple', icon: Icons.apple, color: Colors.red),
-        FoodItem(id: '2', name: 'Carrot', icon: Icons.grass, color: Colors.orange), // grass icon as placeholder
-        // Using local icons for simplicity, but you could use Image.network later
-        FoodItem(id: '3', name: 'Pizza', icon: Icons.local_pizza, color: Colors.orangeAccent),
-        FoodItem(id: '4', name: 'Cake', icon: Icons.cake, color: Colors.pinkAccent),
+        FoodItem(id: '1', name: 'APPLE', icon: Icons.apple, color: Colors.red),
+        FoodItem(id: '2', name: 'CARROT', icon: Icons.auto_awesome_mosaic, color: Colors.orange),
+        FoodItem(id: '3', name: 'PIZZA', icon: Icons.local_pizza, color: Colors.orangeAccent),
+        FoodItem(id: '4', name: 'CAKE', icon: Icons.cake, color: Colors.pinkAccent),
       ];
       _isLoading = false;
     });
@@ -48,148 +44,198 @@ class _KitchenScreenState extends State<KitchenScreen> {
 
   void _feedTamagotchi(FoodItem food) {
     setState(() {
-      // Remove food from inventory and clear the slot
       _fridgeInventory.removeWhere((item) => item.id == food.id);
       _selectedFood = null;
     });
 
-    // Show the success message
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Pet fed a tasty ${food.name}!'),
+        backgroundColor: Theme.of(context).colorScheme.secondary,
+        content: Text(
+          'YUM! FED ${food.name}!',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSecondary, fontWeight: FontWeight.bold),
+        ),
         duration: const Duration(seconds: 1),
         behavior: SnackBarBehavior.floating,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero), // Sharp edges
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // ==========================================
-        // TOP: The Tamagotchi (The DragTarget)
-        // ==========================================
-        Expanded(
-          flex: 3,
-          child: Center(
-            child: DragTarget<FoodItem>(
-              // This is what happens when the user drops the food here
-              onAcceptWithDetails: (details) {
-                _feedTamagotchi(details.data);
-              },
-              // The builder lets us change how the pet looks when food is hovering
-              builder: (context, candidateData, rejectedData) {
-                final isFoodHovering = candidateData.isNotEmpty;
-                
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isFoodHovering ? Colors.teal.withOpacity(0.2) : Colors.transparent,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    // Open mouth if food is hovering!
-                    isFoodHovering ? Icons.sentiment_very_satisfied : Icons.pets, 
-                    size: 120, 
-                    color: Colors.teal.shade700,
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
+    final colorScheme = Theme.of(context).colorScheme;
 
-        // ==========================================
-        // MIDDLE: The Fridge Inventory
-        // ==========================================
-        Expanded(
-          flex: 2,
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.blueGrey.shade50,
-              border: const Border(top: BorderSide(color: Colors.blueGrey, width: 4)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: Text('Fridge', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+    return Scaffold(
+      backgroundColor: colorScheme.background,
+      body: Column(
+        children: [
+          // ==========================================
+          // TOP: The Tamagotchi
+          // ==========================================
+          Expanded(
+  flex: 3,
+  child: Center(
+    child: DragTarget<FoodItem>(
+      onAcceptWithDetails: (details) => _feedTamagotchi(details.data),
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isHovering ? colorScheme.primary.withOpacity(0.1) : null,
+            border: isHovering ? Border.all(width: 4, color: colorScheme.primary) : null,
+          ),
+          child: Center(
+              child: Image.asset(
+                isHovering
+                    ? 'assets/animations/BaseTama/BaseTama2.png' // 👈 Asset shown when dragging over
+                    : 'assets/animations/BaseTama/BaseTama1.png', // 👈 Default asset
+                width: 220,
+                height: 220,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => Icon(
+                  isHovering ? Icons.face_retouching_natural : Icons.catching_pokemon,
+                  size: 120,
+                  color: colorScheme.onSurface,
                 ),
-                Expanded(
-                  child: _isLoading 
-                    ? const Center(child: CircularProgressIndicator())
-                    : ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _fridgeInventory.length,
-                        itemBuilder: (context, index) {
-                          final food = _fridgeInventory[index];
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedFood = food;
-                              });
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-                              width: 80,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: _selectedFood?.id == food.id ? Colors.teal : Colors.grey.shade300,
-                                  width: 2,
+              ),
+            ),
+        );
+      },
+    ),
+  ),
+),
+
+          // ==========================================
+          // MIDDLE: The Fridge (Pixel-style shelf)
+          // ==========================================
+          Expanded(
+            flex: 2,
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                border: Border(
+                  top: BorderSide(color: colorScheme.onSurface, width: 6),
+                  bottom: BorderSide(color: colorScheme.onSurface, width: 2),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    color: colorScheme.primary,
+                    child: Text(
+                      'FRIDGE_INVENTORY',
+                      style: TextStyle(color: colorScheme.onPrimary, fontWeight: FontWeight.bold, letterSpacing: 2),
+                    ),
+                  ),
+                  Expanded(
+                    child: _isLoading
+                        ? Center(child: Text("LOADING...", style: TextStyle(color: colorScheme.onSurface)))
+                        : ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _fridgeInventory.length,
+                            itemBuilder: (context, index) {
+                              final food = _fridgeInventory[index];
+                              final isSelected = _selectedFood?.id == food.id;
+                              return _PixelButton(
+                                isSelected: isSelected,
+                                colorScheme: colorScheme,
+                                onTap: () => setState(() => _selectedFood = food),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(food.icon, size: 32, color: food.color),
+                                    const SizedBox(height: 4),
+                                    Text(food.name, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                                  ],
                                 ),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(food.icon, size: 40, color: food.color),
-                                  Text(food.name, style: const TextStyle(fontSize: 12)),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                ),
-              ],
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
 
-        // ==========================================
-        // BOTTOM: The Food Slot (The Draggable)
-        // ==========================================
-        Container(
-          height: 120,
-          width: double.infinity,
-          color: Colors.grey.shade200,
-          child: Center(
-            child: _selectedFood == null 
-              ? const Text('Tap food from the fridge to select', style: TextStyle(color: Colors.grey))
-              : Draggable<FoodItem>(
-                  // The data that gets passed to the DragTarget
-                  data: _selectedFood,
-                  // What the user sees under their finger while dragging
-                  feedback: Material(
-                    color: Colors.transparent,
-                    child: Icon(_selectedFood!.icon, size: 80, color: _selectedFood!.color),
-                  ),
-                  // What gets left behind in the slot while dragging
-                  childWhenDragging: Opacity(
-                    opacity: 0.3,
-                    child: Icon(_selectedFood!.icon, size: 60, color: _selectedFood!.color),
-                  ),
-                  // The default look of the slot before dragging
-                  child: Icon(_selectedFood!.icon, size: 60, color: _selectedFood!.color),
-                ),
+          // ==========================================
+          // BOTTOM: The Food Slot (Hand-off Area)
+          // ==========================================
+          Container(
+            height: 140,
+            width: double.infinity,
+            color: colorScheme.secondary.withOpacity(0.2),
+            child: Center(
+              child: _selectedFood == null
+                  ? Text('SELECT_ITEMS', style: TextStyle(color: colorScheme.primary.withOpacity(0.5)))
+                  : Draggable<FoodItem>(
+                      data: _selectedFood,
+                      feedback: Material(
+                        color: Colors.transparent,
+                        child: Icon(_selectedFood!.icon, size: 80, color: _selectedFood!.color),
+                      ),
+                      childWhenDragging: Opacity(
+                        opacity: 0.2,
+                        child: Icon(_selectedFood!.icon, size: 70, color: _selectedFood!.color),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surface,
+                          border: Border.all(width: 4, color: colorScheme.primary),
+                          boxShadow: [
+                            BoxShadow(color: colorScheme.onSurface, offset: const Offset(6, 6)),
+                          ],
+                        ),
+                        child: Icon(_selectedFood!.icon, size: 60, color: _selectedFood!.color),
+                      ),
+                    ),
+            ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- Helper Widget for Retro Block Buttons ---
+class _PixelButton extends StatelessWidget {
+  final Widget child;
+  final bool isSelected;
+  final ColorScheme colorScheme;
+  final VoidCallback onTap;
+
+  const _PixelButton({
+    required this.child,
+    required this.isSelected,
+    required this.colorScheme,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        width: 80,
+        decoration: BoxDecoration(
+          color: isSelected ? colorScheme.secondary : colorScheme.surface,
+          border: Border.all(
+            color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+            width: 4,
+          ),
+          boxShadow: [
+            if (!isSelected) BoxShadow(color: colorScheme.onSurface.withOpacity(0.2), offset: const Offset(4, 4)),
+          ],
         ),
-      ],
+        child: child,
+      ),
     );
   }
 }
