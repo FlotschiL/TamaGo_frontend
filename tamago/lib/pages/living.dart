@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tamago/utils/services/api_manager.dart';
 import 'package:tamago/Objects/game_state.dart';
+import 'package:tamago/pages/chatnavigation.dart';
+
 
 class LivingRoomPage extends StatefulWidget {
   const LivingRoomPage({super.key});
@@ -191,6 +193,7 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
 
     // 3. Main Game UI
     return Scaffold(
+      floatingActionButton: const ChatNavigationTrigger(),
       body: Stack(
         children: [
           // Background Image
