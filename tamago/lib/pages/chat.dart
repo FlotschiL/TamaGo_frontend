@@ -97,36 +97,31 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _loadHistory() async {
-    if (_currentSessionId == null) return;
+Future<void> _loadHistory() async {
+  if (_currentSessionId == null) return;
 
-    try {
-      final history =
-          await _chatService.getSessionHistory(
-        _currentSessionId!,
-      );
+  try {
+    final history = await _chatService.getSessionHistory(_currentSessionId!);
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      setState(() {
-        _messages.clear();
+    setState(() {
+      _messages.clear();
 
-        for (var msg in history) {
-          _messages.insert(0, {
-            "text": msg['content'] ?? "",
-            "isUser":
-                msg['isFromUser'] ?? false,
-          });
-        }
-      });
-    } catch (e) {
-      debugPrint("History Fehler: $e");
+      for (var msg in history) {
+        bool userFlag = msg['fromUser'] == true || msg['fromUser'] == 1;
 
-      _showError(
-        "Historie konnte nicht geladen werden.",
-      );
-    }
+        _messages.insert(0, {
+          "text": msg['content'] ?? "",
+          "isUser": userFlag,
+        });
+      }
+    });
+  } catch (e) {
+    debugPrint("History Fehler: $e");
+    _showError("Historie konnte nicht geladen werden.");
   }
+}
 
   Future<void> _handleSend() async {
     if (_controller.text.trim().isEmpty ||
