@@ -1,243 +1,426 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:tamago/pages/chatnavigation.dart';
+import 'package:tamago/utils/services/chat_service.dart';
+import 'package:tamago/utils/services/api_manager.dart';
 
-// Lokale Kopie der AppColors
+// Farben
 abstract class AppColors {
   static const Color textLight = Color(0xFFF7F5ED);
   static const Color textDark = Color(0xFF161616);
+
   static const Color bgPrimary = Color(0xFFFDF9AC);
   static const Color bgSecondary = Color(0xFFDAD68F);
+
   static const Color elementsPrimary = Color(0xFF505081);
   static const Color elementsSecondary = Color(0xFF78A083);
 }
 
 class ChatScreen extends StatefulWidget {
-  final String? authToken; // Der JWT Token von der Login-Seite
-  const ChatScreen({super.key, this.authToken});
+  const ChatScreen({super.key});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final TextEditingController _controller = TextEditingController();
+  final TextEditingController _controller =
+      TextEditingController();
+
   final List<Map<String, dynamic>> _messages = [];
-  bool _isLoading = false;
+
+  late ChatService _chatService;
+
   int? _currentSessionId;
-  
-  // Konfiguration
-  final String baseUrl = "http://localhost:8080";
+
+  bool _isLoading = true;
+  bool _isTyping = false;
+
+  // Styles
+  final TextStyle _headingStyle = const TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.bold,
+  );
+
+  final TextStyle _bodyStyle = const TextStyle(
+    fontSize: 16,
+  );
 
   @override
   void initState() {
     super.initState();
+
+    _chatService = ChatService(ApiClient());
+
     _initializeChat();
   }
 
-  // --- API LOGIK ---
-
-  Future<void> _initializeChat() async {
-    setState(() => _isLoading = true);
-    try {
-      // 1. Sitzungen abrufen
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/chat/sessions'),
-        headers: {'Authorization': 'Bearer ${widget.authToken}'},
-      );
-
-      if (response.statusCode == 200) {
-        List sessions = jsonDecode(response.body);
-        if (sessions.isEmpty) {
-          // 2. Wenn keine Sitzung existiert, eine neue erstellen
-          await _createNewSession();
-        } else {
-          // Die neueste Sitzung nehmen
-          _currentSessionId = sessions.last['id'];
-          await _loadHistory();
-        }
-      }
-    } catch (e) {
-      _showError("Verbindung zum Server fehlgeschlagen.");
-    } finally {
-      setState(() => _isLoading = false);
-    }
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
-  Future<void> _createNewSession() async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/chat/sessions'),
-      headers: {
-        'Authorization': 'Bearer ${widget.authToken}',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({"title": "Chat mit Tama"}),
-    );
-    if (response.statusCode == 200) {
-      final session = jsonDecode(response.body);
-      _currentSessionId = session['id'];
+  Future<void> _initializeChat() async {
+    try {
+      final sessions =
+          await _chatService.getSessions();
+
+      if (sessions.isNotEmpty) {
+        // Neueste Session
+        _currentSessionId =
+            sessions.last['id'];
+      } else {
+        final newSession =
+            await _chatService.createSession(
+          "Neuer Chat",
+        );
+
+        _currentSessionId =
+            newSession['id'];
+      }
+
+      await _loadHistory();
+    } catch (e) {
+      debugPrint(
+        "Initialisierungsfehler: $e",
+      );
+
+      _showError(
+        "Chat konnte nicht geladen werden.",
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _loadHistory() async {
     if (_currentSessionId == null) return;
-    
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/chat/sessions/$_currentSessionId/history'),
-      headers: {'Authorization': 'Bearer ${widget.authToken}'},
-    );
 
-    if (response.statusCode == 200) {
-      List history = jsonDecode(response.body);
+    try {
+      final history =
+          await _chatService.getSessionHistory(
+        _currentSessionId!,
+      );
+
+      if (!mounted) return;
+
       setState(() {
         _messages.clear();
+
         for (var msg in history) {
-          _messages.add({
-            "text": msg['content'],
-            "isUser": msg['isFromUser'],
+          _messages.insert(0, {
+            "text": msg['content'] ?? "",
+            "isUser":
+                msg['isFromUser'] ?? false,
           });
         }
-        // Umkehren für ListView.builder(reverse: true)
-        _messages.sort((a, b) => b.hashCode.compareTo(a.hashCode)); 
       });
+    } catch (e) {
+      debugPrint("History Fehler: $e");
+
+      _showError(
+        "Historie konnte nicht geladen werden.",
+      );
     }
   }
 
   Future<void> _handleSend() async {
-    if (_controller.text.trim().isEmpty || _currentSessionId == null) return;
+    if (_controller.text.trim().isEmpty ||
+        _currentSessionId == null) {
+      return;
+    }
 
-    final userText = _controller.text;
+    final userText =
+        _controller.text.trim();
+
     _controller.clear();
 
-    // Lokale UI sofort aktualisieren
     setState(() {
-      _messages.insert(0, {"text": userText, "isUser": true});
+      _messages.insert(0, {
+        "text": userText,
+        "isUser": true,
+      });
+
+      _isTyping = true;
     });
 
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/llm/talk'),
-        headers: {
-          'Authorization': 'Bearer ${widget.authToken}',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          "message": userText,
-          "sessionId": _currentSessionId
-        }),
+      final aiReply =
+          await _chatService.talkToAI(
+        userText,
+        _currentSessionId!,
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          _messages.insert(0, {"text": data['reply'], "isUser": false});
+      if (!mounted) return;
+
+      setState(() {
+        _isTyping = false;
+
+        _messages.insert(0, {
+          "text": aiReply,
+          "isUser": false,
         });
-      }
+      });
     } catch (e) {
-      _showError("Nachricht konnte nicht gesendet werden.");
+      if (!mounted) return;
+
+      setState(() {
+        _isTyping = false;
+      });
+
+      _showError(
+        "Tama ist gerade schüchtern (Verbindungsproblem).",
+      );
     }
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
   }
-
-  // --- UI STYLES ---
-
-  TextStyle get _bodyStyle => const TextStyle(
-      fontFamily: 'JosefinSans', fontWeight: FontWeight.w300, fontStyle: FontStyle.italic, color: AppColors.textDark);
-  
-  TextStyle get _headingStyle => const TextStyle(
-      fontFamily: 'JosefinSans', fontWeight: FontWeight.w400, color: AppColors.textDark);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
+
       appBar: AppBar(
-        title: Text("Chat mit Tama", style: _headingStyle.copyWith(color: AppColors.textLight)),
-        backgroundColor: AppColors.elementsPrimary,
-        elevation: 0,
-        actions: [
-          if (_isLoading) 
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(color: AppColors.textLight, strokeWidth: 2),
-            )
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              reverse: true, // Neue Nachrichten unten
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final msg = _messages[index];
-                final isUser = msg['isUser'] as bool;
-                
-                return Align(
-                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isUser ? AppColors.elementsSecondary : AppColors.bgSecondary,
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(12),
-                        topRight: const Radius.circular(12),
-                        bottomLeft: Radius.circular(isUser ? 12 : 0),
-                        bottomRight: Radius.circular(isUser ? 0 : 12),
-                      ),
-                    ),
-                    child: Text(msg['text'], style: _bodyStyle.copyWith(
-                      color: isUser ? AppColors.textLight : AppColors.textDark
-                    )),
-                  ),
-                );
-              },
-            ),
+        backgroundColor:
+            AppColors.elementsPrimary,
+
+        title: Text(
+          "Chat mit Tama",
+          style: _headingStyle.copyWith(
+            color: AppColors.textLight,
           ),
-          _buildInput(),
-        ],
+        ),
       ),
-      floatingActionButton: const ChatNavigationTrigger(),
+
+      body: _isLoading
+          ? const Center(
+              child:
+                  CircularProgressIndicator(),
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    reverse: true,
+                    padding:
+                        const EdgeInsets.all(
+                      16,
+                    ),
+
+                    itemCount:
+                        _messages.length +
+                            (_isTyping ? 1 : 0),
+
+                    itemBuilder:
+                        (context, index) {
+                      // Typing Indicator
+                      if (_isTyping &&
+                          index == 0) {
+                        return _buildTypingIndicator();
+                      }
+
+                      final msgIndex =
+                          _isTyping
+                              ? index - 1
+                              : index;
+
+                      // Sicherheit gegen negative Indizes
+                      if (msgIndex < 0 ||
+                          msgIndex >=
+                              _messages
+                                  .length) {
+                        return const SizedBox();
+                      }
+
+                      final msg =
+                          _messages[msgIndex];
+
+                      return _buildMessageBubble(
+                        msg['text'],
+                        msg['isUser'],
+                      );
+                    },
+                  ),
+                ),
+
+                _buildInput(),
+              ],
+            ),
+
+      floatingActionButton:
+          const ChatNavigationTrigger(),
+    );
+  }
+
+  // Typing Animation
+  Widget _buildTypingIndicator() {
+    return Align(
+      alignment: Alignment.centerLeft,
+
+      child: Container(
+        margin:
+            const EdgeInsets.symmetric(
+          vertical: 4,
+        ),
+
+        padding:
+            const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+
+        decoration: BoxDecoration(
+          color: AppColors.bgSecondary,
+
+          borderRadius:
+              BorderRadius.circular(8),
+        ),
+
+        child: const Text(
+          "...",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(
+    String text,
+    bool isUser,
+  ) {
+    return Align(
+      alignment: isUser
+          ? Alignment.centerRight
+          : Alignment.centerLeft,
+
+      child: Container(
+        margin:
+            const EdgeInsets.symmetric(
+          vertical: 4,
+        ),
+
+        padding: const EdgeInsets.all(12),
+
+        constraints: BoxConstraints(
+          maxWidth:
+              MediaQuery.of(context)
+                      .size
+                      .width *
+                  0.75,
+        ),
+
+        decoration: BoxDecoration(
+          color: isUser
+              ? AppColors
+                  .elementsSecondary
+              : AppColors.bgSecondary,
+
+          borderRadius:
+              BorderRadius.circular(8),
+        ),
+
+        child: Text(
+          text,
+          style: _bodyStyle.copyWith(
+            color: isUser
+                ? AppColors.textLight
+                : AppColors.textDark,
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildInput() {
     return Container(
       padding: const EdgeInsets.all(12),
+
       decoration: const BoxDecoration(
         color: AppColors.bgSecondary,
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)]
+
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 4,
+          ),
+        ],
       ),
+
       child: Row(
         children: [
           Expanded(
             child: TextField(
               controller: _controller,
+
               style: _bodyStyle,
+
               decoration: InputDecoration(
                 filled: true,
-                fillColor: AppColors.bgPrimary,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide.none),
-                hintText: "Schreib etwas...",
-                hintStyle: _bodyStyle.copyWith(
-                  color: AppColors.textDark.withOpacity(0.5),
+
+                fillColor:
+                    AppColors.bgPrimary,
+
+                hintText:
+                    "Schreib etwas...",
+
+                hintStyle:
+                    _bodyStyle.copyWith(
+                  color: AppColors
+                      .textDark
+                      .withOpacity(0.5),
+                ),
+
+                border:
+                    OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius
+                          .circular(8),
+
+                  borderSide:
+                      BorderSide.none,
                 ),
               ),
-              onSubmitted: (_) => _handleSend(),
+
+              onSubmitted: (_) =>
+                  _handleSend(),
             ),
           ),
+
           const SizedBox(width: 8),
+
           Container(
-            decoration: BoxDecoration(color: AppColors.elementsPrimary, borderRadius: BorderRadius.circular(25)),
+            decoration: BoxDecoration(
+              color:
+                  AppColors.elementsPrimary,
+
+              borderRadius:
+                  BorderRadius.circular(
+                25,
+              ),
+            ),
+
             child: IconButton(
-              icon: const Icon(Icons.send, color: AppColors.textLight),
+              icon: const Icon(
+                Icons.send,
+                color:
+                    AppColors.textLight,
+              ),
+
               onPressed: _handleSend,
             ),
           ),
