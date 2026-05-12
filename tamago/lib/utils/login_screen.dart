@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:get_it/get_it.dart';
 // import 'package:tamago/api/api_manager.dart'; // Ensure this is imported
 import 'package:tamago/main.dart';
-import 'package:tamago/utils/services/api_manager.dart'; 
+import 'package:tamago/utils/services/service_locator.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? errorMessage;
@@ -33,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
   // --- Logic for Login ---
   Future<void> _login() async {
     await _performAuthAction(
-      action: () => GetIt.I<ApiClient>().login(
+      action: () => services.auth.login(
         _usernameController.text.trim(),
         _passwordController.text.trim(),
       ),
@@ -44,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
   // --- Logic for Register ---
   Future<void> _register() async {
     await _performAuthAction(
-      action: () => GetIt.I<ApiClient>().register(
+      action: () => services.auth.register(
         _usernameController.text.trim(),
         _passwordController.text.trim(),
       ),

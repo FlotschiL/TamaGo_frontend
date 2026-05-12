@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
-import 'package:tamago/utils/services/api_manager.dart';
 import 'package:tamago/Objects/game_state.dart';
 import 'package:tamago/pages/chatnavigation.dart';
 
-
+import 'package:tamago/utils/services/service_locator.dart';
 class LivingRoomPage extends StatefulWidget {
   const LivingRoomPage({super.key});
 
@@ -13,7 +11,6 @@ class LivingRoomPage extends StatefulWidget {
 }
 
 class _LivingRoomPageState extends State<LivingRoomPage> {
-  final ApiClient _apiClient = GetIt.I<ApiClient>();
 
   GameState? _gameState;
   bool _isLoading = true;
@@ -31,7 +28,7 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
         _isLoading = true;
         _errorMessage = null;
       });
-      final newState = await _apiClient.getGameState();
+      final newState = await services.game.getStatus();
       setState(() {
         _gameState = newState;
         _isLoading = false;
@@ -47,7 +44,7 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
   Future<void> _feed() async {
     setState(() => _isLoading = true);
     try {
-      final updatedState = await _apiClient.feed(1);
+      final updatedState = await services.game.feed(1);
       setState(() {
         _gameState = updatedState;
         _isLoading = false;

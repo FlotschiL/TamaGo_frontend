@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import "package:tamago/main.dart";
 import "package:tamago/utils/login_screen.dart";
 import "package:flutter_secure_storage/flutter_secure_storage.dart";
-import 'package:get_it/get_it.dart';
-import 'package:tamago/utils/services/api_manager.dart';
-
+import 'package:tamago/utils/services/service_locator.dart';
 class RootInitializer extends StatefulWidget {
   const RootInitializer({super.key});
 
@@ -33,7 +31,7 @@ class _RootInitializerState extends State<RootInitializer> {
 
     try {
       // Ensure ApiClient is actually registered in GetIt before this runs!
-      final res = await GetIt.I<ApiClient>().login(username, password);
+      final res = await services.auth.login(username, password);
       
       if (res) {
         _navigateToMain();

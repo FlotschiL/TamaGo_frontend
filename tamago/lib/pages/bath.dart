@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
-import 'package:tamago/utils/services/api_manager.dart';
 import 'package:tamago/Objects/game_state.dart';
 import 'package:tamago/pages/chatnavigation.dart';
 
-
+import 'package:tamago/utils/services/service_locator.dart';
 class BathroomPage extends StatefulWidget {
   const BathroomPage({super.key});
 
@@ -13,7 +11,6 @@ class BathroomPage extends StatefulWidget {
 }
 
 class _BathroomPageState extends State<BathroomPage> {
-  final ApiClient _apiClient = GetIt.I<ApiClient>();
 
   GameState? _gameState;
   bool _isLoading = true;
@@ -31,7 +28,7 @@ class _BathroomPageState extends State<BathroomPage> {
         _isLoading = true;
         _errorMessage = null;
       });
-      final newState = await _apiClient.getGameState();
+      final newState = await services.game.getStatus();
       setState(() {
         _gameState = newState;
         _isLoading = false;

@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
 import "package:tamago/utils/RootInitializer.dart";
-import "package:tamago/utils/services/api_manager.dart";
-import "package:tamago/utils/injection_container.dart" as di;
 import "package:tamago/pages/living.dart";
 import "package:tamago/pages/kitchen.dart";
 import "package:tamago/pages/bath.dart";
 import "package:tamago/pages/store.dart";
 import 'package:tamago/Objects/game_state.dart';
-import 'package:get_it/get_it.dart';
-import "package:tamago/utils/app_colors.dart";
+import "package:tamago/utils/theme/app_colors.dart";
 
+import 'package:tamago/utils/services/service_locator.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  di.init();
   runApp(const TamagotchiApp());
 }
 
@@ -47,7 +44,6 @@ class MainGameNavigation extends StatefulWidget {
 }
 
 class _MainGameNavigationState extends State<MainGameNavigation> {
-  final ApiClient _apiClient = GetIt.I<ApiClient>();
   int _currentIndex = 0;
   GameState? _gameState;
 
@@ -66,7 +62,7 @@ class _MainGameNavigationState extends State<MainGameNavigation> {
 
   Future<void> _loadGameState() async {
     try {
-      final state = await _apiClient.getGameState();
+      final state = await services.game.getStatus();
       setState(() => _gameState = state);
     } catch (e) {
       debugPrint("Failed to load: $e");
@@ -74,7 +70,7 @@ class _MainGameNavigationState extends State<MainGameNavigation> {
   }
 
   void _handleLogout() {
-    GetIt.I<ApiClient>().logout();
+    services.auth.logout();
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const RootInitializer()),
       (route) => false,
@@ -127,7 +123,7 @@ class _MainGameNavigationState extends State<MainGameNavigation> {
 
     if (newName != null && newName.isNotEmpty && newName != _gameState?.name) {
       try {
-        await _apiClient.rename(newName);
+        await services.game.rename(newName);
         _loadGameState();
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('RENAME_FAILED')));
