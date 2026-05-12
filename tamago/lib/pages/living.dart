@@ -41,21 +41,10 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
     }
   }
 
-  Future<void> _feed() async {
-    setState(() => _isLoading = true);
-    try {
-      final updatedState = await services.game.feed(1);
-      setState(() {
-        _gameState = updatedState;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-    }
-  }
 
-  Future<void> _pet() async {
+  Future<void> _pet(int placeId) async {
     _refreshGameState();
+    await services.game.pet(placeId);
   }
 
   // --- UI HELPERS (Moved outside build for clarity) ---
@@ -254,19 +243,13 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildPixelButton(
-                      label: "FEED",
-                      icon: Icons.restaurant,
-                      onPressed: _gameState!.alive ? _feed : null,
-                      color: colorScheme.primary,
-                      colorScheme: colorScheme,
-                    ),
-                    _buildPixelButton(
-                      label: "PET",
+                      label: "PET+",
                       icon: Icons.front_hand,
-                      onPressed: _gameState!.alive ? _pet : null,
+                      onPressed: _gameState!.alive ? () => _pet(1) : null,
                       color: colorScheme.secondary,
                       colorScheme: colorScheme,
                     ),
+ 
                   ],
                 ),
               ),

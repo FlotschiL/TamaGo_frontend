@@ -21,6 +21,8 @@ class AuthService {
       );
       
       if (res.statusCode == 200) {
+        await _storage.write(key: 'username', value: username);
+        await _storage.write(key: 'password', value: password);
         await _storage.write(key: 'auth_token', value: res.data['token']);
         return true;
       }
@@ -28,5 +30,9 @@ class AuthService {
 
   }
 
-  Future<void> logout() async => await _storage.delete(key: 'auth_token');
+  Future<void> logout() async {
+  await _storage.delete(key: 'auth_token');
+  await _storage.delete(key:  'username');
+  await _storage.delete(key: 'password'); 
+}
 }

@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
+import 'package:flutter/widgets.dart';
 class ApiClient {
   late final Dio dio;
   final _storage = const FlutterSecureStorage();
@@ -25,10 +25,7 @@ class ApiClient {
         return handler.next(options);
       },
       onError: (DioException e, handler) async {
-        if (e.response?.statusCode == 401) {
-          // Future logic: Trigger a logout stream or navigate to login
-          await _storage.deleteAll(); 
-        }
+        debugPrint("API Error: ${e.error} | Response: ${e.type}");
         return handler.next(e);
       },
     ));
