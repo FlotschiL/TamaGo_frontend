@@ -77,61 +77,6 @@ class _KitchenScreenState extends State<KitchenScreen> {
 Widget build(BuildContext context) {
   final colorScheme = Theme.of(context).colorScheme;
 
-  return Scaffold(
-    backgroundColor: colorScheme.background,
-    body: Stack(
-      children: [
-        // ==========================================
-        // BACKGROUND: Kitchen image (rendered first = behind everything)
-        // ==========================================
-        Positioned.fill(
-          child: Image.asset(
-            'assets/backgrounds/kitchen.png',
-            fit: BoxFit.cover,
-          ),
-        ),
-
-        // ==========================================
-        // FOREGROUND: All UI content in a Column
-        // ==========================================
-        Column(
-          children: [
-            // ==========================================
-            // TOP: The Tamagotchi
-            // ==========================================
-            Expanded(
-              flex: 3,
-              child: Center(
-                child: DragTarget<FoodItem>(
-                  onAcceptWithDetails: (details) => _feedTamagotchi(details.data),
-                  builder: (context, candidateData, rejectedData) {
-                    final isHovering = candidateData.isNotEmpty;
-                    return Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: isHovering ? colorScheme.primary.withOpacity(0.1) : null,
-                        border: isHovering ? Border.all(width: 4, color: colorScheme.primary) : null,
-                      ),
-                      child: Center(
-                        child: Image.asset(
-                          isHovering
-                              ? 'assets/animations/BaseTama/BaseTama2.png'
-                              : 'assets/animations/BaseTama/BaseTama1.png',
-                          width: 220,
-                          height: 220,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => Icon(
-                            isHovering ? Icons.face_retouching_natural : Icons.catching_pokemon,
-                            size: 120,
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
     return Scaffold(
       backgroundColor: colorScheme.background,
       floatingActionButton: const ChatNavigationTrigger(),
@@ -322,9 +267,7 @@ Widget build(BuildContext context) {
             ),
           ],
         ),
-      ],
-    ),
-  );
+    );
 }}
 // --- Helper Widget for Retro Block Buttons ---
 class _PixelButton extends StatelessWidget {
