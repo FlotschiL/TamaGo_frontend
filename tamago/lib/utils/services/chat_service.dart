@@ -30,4 +30,5 @@ class ChatService {
     });
     return res.data['reply']; // Gibt den "reply" String zurück
   }
+
 }

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:tamago/pages/chatnavigation.dart';
 import 'package:tamago/utils/services/service_locator.dart';
-import 'package:tamago/utils/services/model/friend.dart'; // Import the Friend model  
+import 'package:tamago/utils/services/model/friend.dart'; 
+// Ensure this import points to your ChatScreen file
+import 'package:tamago/pages/chat.dart'; 
+
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
 
@@ -11,7 +14,7 @@ class FriendsPage extends StatefulWidget {
 
 class _FriendsPageState extends State<FriendsPage> {
   List<Friend> _friends = [];
-  List<Friend> _pendingRequests = []; // Track separate API response payload
+  List<Friend> _pendingRequests = []; 
   bool _isLoading = true;
   String? _errorMessage;
   final TextEditingController _usernameController = TextEditingController();
@@ -28,6 +31,8 @@ class _FriendsPageState extends State<FriendsPage> {
     super.dispose();
   }
 
+  // --- LOGIC ---
+
   Future<void> _fetchFriendsAndRequests() async {
     try {
       setState(() {
@@ -35,7 +40,6 @@ class _FriendsPageState extends State<FriendsPage> {
         _errorMessage = null;
       });
 
-      // Execute both API calls asynchronously in parallel
       final responses = await Future.wait([
         services.friend.getFriendsList(),
         services.friend.getPendingRequests(),
@@ -51,6 +55,33 @@ class _FriendsPageState extends State<FriendsPage> {
         _isLoading = false;
         _errorMessage = "FAILED TO SYNC PORTAL data: $e";
       });
+    }
+  }
+
+  // NEW: Navigation logic to start a chat
+  void _navigateToChat(String friendName) async {
+    setState(() => _isLoading = true);
+    try {
+      // Use your ChatService to create/get a session for this friend
+      final session = await services.chat.createSession("Chat with $friendName");
+      
+      if (!mounted) return;
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatScreen(
+            initialSessionId: session['id'],
+            tamaName: friendName,
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("COULD NOT OPEN CHAT")),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -109,7 +140,7 @@ class _FriendsPageState extends State<FriendsPage> {
     return GestureDetector(
       onTap: onPressed,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isDisabled ? colorScheme.surface.withOpacity(0.5) : color,
           border: Border.all(
@@ -129,16 +160,16 @@ class _FriendsPageState extends State<FriendsPage> {
           children: [
             Icon(
               icon, 
-              size: 16,
-              color: isDisabled ? colorScheme.onSurface.withOpacity(0.3) : colorScheme.onPrimary
+              size: 14,
+              color: isDisabled ? colorScheme.onSurface.withOpacity(0.3) : Colors.white,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 4),
             Text(
               label,
               style: TextStyle(
                 fontSize: fontSize,
                 fontWeight: FontWeight.bold,
-                color: isDisabled ? colorScheme.onSurface.withOpacity(0.3) : colorScheme.onPrimary,
+                color: isDisabled ? colorScheme.onSurface.withOpacity(0.3) : Colors.white,
               ),
             ),
           ],
@@ -162,6 +193,7 @@ class _FriendsPageState extends State<FriendsPage> {
       ),
       child: Row(
         children: [
+          // Avatar
           Container(
             width: 50,
             height: 50,
@@ -176,6 +208,7 @@ class _FriendsPageState extends State<FriendsPage> {
             ),
           ),
           const SizedBox(width: 14),
+          // Name and Status
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,10 +221,13 @@ class _FriendsPageState extends State<FriendsPage> {
                   Text(
                     "INCOMING REQUEST",
                     style: TextStyle(fontSize: 10, color: colorScheme.secondary, fontWeight: FontWeight.bold),
-                  ),
+                  )
+                else 
+                  const Text("ONLINE", style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
+          // Action Buttons
           if (isPending)
             _buildPixelButton(
               label: "ACCEPT",
@@ -202,7 +238,14 @@ class _FriendsPageState extends State<FriendsPage> {
               fontSize: 10,
             )
           else
-            Icon(Icons.star, color: Colors.amber[600], size: 24),
+            _buildPixelButton(
+              label: "CHAT",
+              icon: Icons.chat_bubble,
+              onPressed: () => _navigateToChat(friend.username),
+              color: colorScheme.secondary,
+              colorScheme: colorScheme,
+              fontSize: 10,
+            ),
         ],
       ),
     );
@@ -280,14 +323,12 @@ class _FriendsPageState extends State<FriendsPage> {
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           color: colorScheme.surface,
-                          //border: Border.all(color: colorScheme.error, width: 3),
                           child: Text(_errorMessage!, style: TextStyle(color: colorScheme.error, fontWeight: FontWeight.bold)),
                         ),
                       )
                     : ListView(
                         padding: const EdgeInsets.only(top: 12, bottom: 80),
                         children: [
-                          // Render Pending Requests from the dedicated endpoint
                           if (_pendingRequests.isNotEmpty) ...[
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
@@ -298,7 +339,6 @@ class _FriendsPageState extends State<FriendsPage> {
                             const Divider(height: 24, thickness: 2, indent: 16, endIndent: 16),
                           ],
                           
-                          // Render Established Friends
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                             child: Text("MY FRIENDS (${_friends.length})", 
@@ -327,7 +367,6 @@ class _FriendsPageState extends State<FriendsPage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   color: colorScheme.secondary,
-                  //border: Border.all(color: colorScheme.onSurface, width: 2),
                   child: Text("SYNCING...", style: TextStyle(color: colorScheme.onSecondary, fontSize: 11, fontWeight: FontWeight.bold)),
                 ),
               ),
