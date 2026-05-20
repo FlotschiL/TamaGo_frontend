@@ -11,15 +11,7 @@ class GameService {
     debugPrint("${await FlutterSecureStorage().read(key: 'auth_token')}"); // Debug token retrieval
     final res = await _client.dio.get('/api/tama/status');
     debugPrint("Fetched game state: ${res.data}");
-    //return GameState.fromJson(res.data);
-
-    return GameState(
-      id: 53,
-      name: "Tamago",
-      hunger: 20,
-      health: 90,
-      alive: true,
-    );
+    return GameState.fromJson(res.data);
   }
 
   Future<void> rename(String name) async {
