@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import "package:tamago/utils/RootInitializer.dart";
 import "package:tamago/pages/living.dart";
 import "package:tamago/pages/kitchen.dart";
-import "package:tamago/pages/bath.dart";
+import "package:tamago/pages/friends.dart";
 import "package:tamago/pages/store.dart";
 import 'package:tamago/Objects/game_state.dart';
+import "package:tamago/utils/services/model/friend.dart";
 import "package:tamago/utils/theme/app_colors.dart";
 
 import 'package:tamago/utils/services/service_locator.dart';
@@ -50,7 +51,7 @@ class _MainGameNavigationState extends State<MainGameNavigation> {
   final List<Widget> _rooms = [
     const LivingRoomPage(),
     const KitchenScreen(),
-    const BathroomPage(), // Assuming this is your bath page
+    const FriendsPage(), // Assuming this is your bath page
     const StoreScreen(),
   ];
 
@@ -203,7 +204,7 @@ class _MainGameNavigationState extends State<MainGameNavigation> {
           items: [
             _buildPixelNavItem(Icons.chair, 'HOME'),
             _buildPixelNavItem(Icons.restaurant, 'EAT'),
-            _buildPixelNavItem(Icons.bathtub, 'WASH'),
+            _buildPixelNavItem(Icons.verified_user, 'FRIENDS'),
             _buildPixelNavItem(Icons.shopping_cart, 'SHOP'),
           ],
         ),

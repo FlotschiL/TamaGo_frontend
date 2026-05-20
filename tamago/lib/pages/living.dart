@@ -3,6 +3,7 @@ import 'package:tamago/Objects/game_state.dart';
 import 'package:tamago/pages/chatnavigation.dart';
 
 import 'package:tamago/utils/services/service_locator.dart';
+
 class LivingRoomPage extends StatefulWidget {
   const LivingRoomPage({super.key});
 
@@ -41,13 +42,12 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
     }
   }
 
-
   Future<void> _pet(int placeId) async {
     _refreshGameState();
     await services.game.pet(placeId);
   }
 
-  // --- UI HELPERS (Moved outside build for clarity) ---
+  // --- UI HELPERS ---
 
   Widget _buildPixelStatBar(String label, double value, Color barColor, ColorScheme colorScheme) {
     return Column(
@@ -123,11 +123,24 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
     );
   }
 
+  // Safe helper to extract emotion intensity
+  double _getEmotionIntensity(String type, double fallback) {
+    if (_gameState == null) return fallback;
+    try {
+      final emotion = _gameState!.emotions.firstWhere(
+        (e) => e.emotionType.trim() == type.trim(),
+      );
+      return emotion.intensity / 100;
+    } catch (_) {
+      return fallback; 
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    // 1. Error State
+    // 1. ERROR STATE
     if (_errorMessage != null) {
       return Scaffold(
         body: Center(
@@ -161,8 +174,8 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
       );
     }
 
-    // 2. Initial Loading State
-    if (_gameState == null) {
+    // 2. INITIAL LOADING STATE 
+    if (_gameState == null && _isLoading) {
       return Scaffold(
         body: Center(
           child: Text(
@@ -177,7 +190,32 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
       );
     }
 
-    // 3. Main Game UI
+    // 3. EMPTY / NULL STATE 
+    if (_gameState == null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "NO PET FOUND",
+                style: TextStyle(color: colorScheme.error, fontWeight: FontWeight.bold, fontSize: 20),
+              ),
+              const SizedBox(height: 16),
+              _buildPixelButton(
+                label: "RELOAD",
+                icon: Icons.refresh,
+                onPressed: _refreshGameState,
+                color: colorScheme.primary,
+                colorScheme: colorScheme,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // 4. MAIN GAME UI
     return Scaffold(
       floatingActionButton: const ChatNavigationTrigger(),
       body: Stack(
@@ -203,8 +241,8 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildPixelStatBar("HUNGER", _gameState!.hunger / 100, colorScheme.primary, colorScheme),
-                    _buildPixelStatBar("HEALTH", _gameState!.health / 100, Colors.green, colorScheme),
+                    _buildPixelStatBar("HUNGER", _getEmotionIntensity("HAPPY", 0.5), colorScheme.primary, colorScheme),
+                    _buildPixelStatBar("HEALTH", (_gameState!.health / 100).clamp(0.0, 1.0), Colors.green, colorScheme),
                     _buildPixelStatBar("ALIVE", _gameState!.alive ? 1.0 : 0.0, colorScheme.secondary, colorScheme),
                   ],
                 ),
@@ -212,60 +250,65 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
 
               const Spacer(),
 
-              // The Pet
+              // The Pet (Now with Swipe Zones)
               Center(
                 child: Opacity(
                   opacity: _gameState!.alive ? 1.0 : 0.4,
-                  child: Image.asset(
-                    'assets/animations/BaseTama/BaseTama1.png',
+                  child: SizedBox(
                     width: 220,
                     height: 220,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.cruelty_free, 
-                      size: 120, 
-                      color: colorScheme.onSurface
+                    child: Stack(
+                      children: [
+                        // The Sprite
+                        Positioned.fill(
+                          child: Image.asset(
+                            'assets/animations/BaseTama/BaseTama1.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                              Icons.cruelty_free, 
+                              size: 120, 
+                              color: colorScheme.onSurface
+                            ),
+                          ),
+                        ),
+                        
+                        // Invisible Petting Zones layered over the Sprite
+                        if (_gameState!.alive)
+                          Positioned.fill(
+                            child: Column(
+                              children: [
+                                // TOP ZONE (1)
+                                Expanded(
+                                  child: GestureDetector(
+                                    // onPanStart fires once when a swipe begins
+                                    onPanStart: (_) => _pet(1),
+                                    child: Container(color: Colors.transparent),
+                                  ),
+                                ),
+                                // MIDDLE ZONE (2)
+                                Expanded(
+                                  child: GestureDetector(
+                                    onPanStart: (_) => _pet(2),
+                                    child: Container(color: Colors.transparent),
+                                  ),
+                                ),
+                                // BOTTOM ZONE (3)
+                                Expanded(
+                                  child: GestureDetector(
+                                    onPanStart: (_) => _pet(3),
+                                    child: Container(color: Colors.transparent),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
               ),
 
-              const Spacer(),
-
-              // Action Controls
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                decoration: BoxDecoration(
-                  color: colorScheme.surface.withOpacity(0.85),
-                  border: Border(top: BorderSide(color: colorScheme.onSurface, width: 6)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildPixelButton(
-                      label: "PET+",
-                      icon: Icons.front_hand,
-                      onPressed: _gameState!.alive ? () => _pet(1) : null,
-                      color: colorScheme.secondary,
-                      colorScheme: colorScheme,
-                    ),
-                     _buildPixelButton(
-                      label: "PET~",
-                      icon: Icons.front_hand,
-                      onPressed: _gameState!.alive ? () => _pet(1) : null,
-                      color: colorScheme.secondary,
-                      colorScheme: colorScheme,
-                    ),
-                                        _buildPixelButton(
-                      label: "PET-",
-                      icon: Icons.front_hand,
-                      onPressed: _gameState!.alive ? () => _pet(1) : null,
-                      color: colorScheme.secondary,
-                      colorScheme: colorScheme,
-                    ),
-                  ],
-                ),
-              ),
+              const Spacer(), // Replaces the old action bar so the pet stays visually centered
             ],
           ),
 

@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:tamago/utils/services/api_manager.dart';
 
 class ChatService {
