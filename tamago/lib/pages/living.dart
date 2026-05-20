@@ -249,7 +249,20 @@ class _LivingRoomPageState extends State<LivingRoomPage> {
                       color: colorScheme.secondary,
                       colorScheme: colorScheme,
                     ),
- 
+                     _buildPixelButton(
+                      label: "PET~",
+                      icon: Icons.front_hand,
+                      onPressed: _gameState!.alive ? () => _pet(1) : null,
+                      color: colorScheme.secondary,
+                      colorScheme: colorScheme,
+                    ),
+                                        _buildPixelButton(
+                      label: "PET-",
+                      icon: Icons.front_hand,
+                      onPressed: _gameState!.alive ? () => _pet(1) : null,
+                      color: colorScheme.secondary,
+                      colorScheme: colorScheme,
+                    ),
                   ],
                 ),
               ),
