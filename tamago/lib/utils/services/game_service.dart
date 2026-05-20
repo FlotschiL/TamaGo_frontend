@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:tamago/Objects/game_state.dart';
 import 'package:tamago/utils/services/api_manager.dart'; // Your ApiClient file
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:tamago/utils/services/model/foodItem.dart';
 class GameService {
   final ApiClient _client;
   GameService(this._client);
@@ -19,8 +20,19 @@ class GameService {
   }
 
   Future<bool> feed(int foodId) async {
-      final res = await _client.dio.post('/api/tama/feed/$foodId');
-      return res.statusCode == 200;
+    final res = await _client.dio.post('/api/tama/feed/$foodId');
+    return res.statusCode == 200;
+  }
+
+  Future<List<FoodItem>> getFoodInventory() async {
+    final res = await _client.dio.get('/api/tama/inventory');
+    List<FoodItem> fridgeInventory = [];
+    
+    if (res.data != null && res.data['food'] != null) {
+      final List<dynamic> foodData = res.data['food'];
+      fridgeInventory = foodData.map((item) => FoodItem.fromJson(item)).toList();
+    }
+    return fridgeInventory;
   }
 
   Future<bool> pet(int placeId) async {
@@ -43,3 +55,4 @@ class GameService {
     return res.statusCode == 200;
   }
 }
+
