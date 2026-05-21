@@ -30,5 +30,15 @@ class ChatService {
     });
     return res.data['reply']; // Gibt den "reply" String zurück
   }
+  // Füge dies zu deiner ChatService Klasse hinzu:
+Future<Map<String, dynamic>?> findSessionByTitle(String title) async {
+  final sessions = await getSessions();
+  // Sucht nach einer Session, die exakt so heißt wie der Freundes-Chat
+  final existing = sessions.firstWhere(
+    (s) => s['title'] == title,
+    orElse: () => null,
+  );
+  return existing;
+}
 
 }

@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:tamago/pages/chat.dart';
 
-// Da wir vorerst keine externen Imports nutzen, definieren wir die Klasse lokal 
-// oder du importierst sie, falls sie in einer anderen Datei liegt.
 class AppColors {
   static const Color textLight = Color(0xFFF7F5ED);
   static const Color elementsPrimary = Color(0xFF505081);
-  static const Color error = Color(0xFFBA1A1A);
 }
 
 class ChatNavigationTrigger extends StatelessWidget {
@@ -17,30 +14,61 @@ class ChatNavigationTrigger extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isChatOpen = ModalRoute.of(context)?.settings.name == '/chat';
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return FloatingActionButton(
-      heroTag: 'chat_button',
-      // Nutzt elementsPrimary oder Error-Rot
-      backgroundColor: isChatOpen ? AppColors.error : (color ?? AppColors.elementsPrimary),
-      foregroundColor: AppColors.textLight,
-      
-      // Guide: Buttons sind Ovale/Circles (25px)
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+    // Wenn der Chat offen ist, verschwindet der Button komplett
+    if (isChatOpen) {
+      return const SizedBox.shrink();
+    }
 
-      onPressed: () {
-        if (isChatOpen) {
-          Navigator.pop(context);
-        } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const ChatScreen(),
-              settings: const RouteSettings(name: '/chat'),
-            ),
-          );
-        }
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ChatScreen(),
+            settings: const RouteSettings(name: '/chat'),
+          ),
+        );
       },
-      child: Icon(isChatOpen ? Icons.close : Icons.chat_bubble),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color ?? AppColors.elementsPrimary,
+          // Der markante Pixel-Rahmen
+          border: Border.all(
+            color: colorScheme.onSurface,
+            width: 3,
+          ),
+          // Der harte "Retro"-Schatten ohne Blur
+          boxShadow: [
+            BoxShadow(
+              color: colorScheme.onSurface,
+              offset: const Offset(3, 3),
+              blurRadius: 0,
+            ),
+          ],
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.chat_bubble,
+              size: 14,
+              color: Colors.white,
+            ),
+            SizedBox(width: 4),
+            Text(
+              "CHAT",
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

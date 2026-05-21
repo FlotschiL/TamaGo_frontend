@@ -154,7 +154,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 _buildInput(),
               ],
             ),
-      floatingActionButton: const ChatNavigationTrigger(),
+      //floatingActionButton: const ChatNavigationTrigger(),
     );
   }
 

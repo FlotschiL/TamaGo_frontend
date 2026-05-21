@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:tamago/pages/chatnavigation.dart';
 import 'package:tamago/utils/services/service_locator.dart';
 import 'package:tamago/utils/services/model/friend.dart'; 
 // Ensure this import points to your ChatScreen file
@@ -60,30 +59,39 @@ class _FriendsPageState extends State<FriendsPage> {
 
   // NEW: Navigation logic to start a chat
   void _navigateToChat(String friendName) async {
-    setState(() => _isLoading = true);
-    try {
-      // Use your ChatService to create/get a session for this friend
-      final session = await services.chat.createSession("Chat with $friendName");
-      
-      if (!mounted) return;
-      
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ChatScreen(
-            initialSessionId: session['id'],
-            tamaName: friendName,
-          ),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("COULD NOT OPEN CHAT")),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+  setState(() => _isLoading = true);
+  try {
+    final sessionTitle = "Chat mit $friendName";
+    
+    // 1. Prüfen ob Session existiert
+    var session = await services.chat.findSessionByTitle(sessionTitle);
+    
+    // 2. Wenn nicht, neu erstellen
+    if (session == null) {
+      session = await services.chat.createSession(sessionTitle);
     }
+    
+    if (!mounted) return;
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(
+          initialSessionId: session!['id'],
+          tamaName: friendName,
+        ),
+        // WICHTIG: Damit der Button verschwindet
+        settings: const RouteSettings(name: '/chat'), 
+      ),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("COULD NOT OPEN CHAT")),
+    );
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
   }
+}
 
   Future<void> _sendRequest() async {
     final username = _usernameController.text.trim();
@@ -256,7 +264,6 @@ class _FriendsPageState extends State<FriendsPage> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      floatingActionButton: const ChatNavigationTrigger(),
       body: Stack(
         children: [
           Positioned.fill(

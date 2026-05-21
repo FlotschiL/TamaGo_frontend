@@ -14,7 +14,7 @@ class ServiceLocator {
   late final GameService game;
   late final ChatService chat;
   late final FriendService friend;
-  //late final StoreService store;
+  late final StoreService store;
   // late final MinigameService minigame; // Ready for expansion
 
   ServiceLocator() {
@@ -23,7 +23,7 @@ class ServiceLocator {
     game = GameService(_apiClient);
     chat = ChatService(_apiClient);
     friend = FriendService(_apiClient);
- //   store = StoreService(_apiClient);
+    store = StoreService(_apiClient);
   }
 }
 
