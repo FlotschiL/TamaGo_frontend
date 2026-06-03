@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tamago/pages/chatnavigation.dart';
-// Ensure these paths match your actual project structure:
+// These imports are kept so your project doesn't break, 
+// though we aren't using the service locator anymore!
 import 'package:tamago/utils/services/service_locator.dart';  
 import 'package:tamago/utils/services/model/foodItem.dart';
 
@@ -23,25 +24,33 @@ class _KitchenScreenState extends State<KitchenScreen> {
     _fetchFridgeInventory();
   }
 
-  // 👈 LIVE BACKEND FETCH
+  // 👈 FAKED LOCAL FETCH
   Future<void> _fetchFridgeInventory() async {
     setState(() => _isLoading = true);
-    try {
-      // Calls the service layer which returns the correct package model
-      final inventory = await services.game.getFoodInventory();
-      setState(() {
-        _fridgeInventory = inventory;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-      // Handle connection/API error logging here
-    }
+    
+    // Simulate a short network delay
+    await Future.delayed(const Duration(milliseconds: 600));
+    
+    setState(() {
+      // Dummy data injection using your FoodItem model
+      _fridgeInventory = [
+        FoodItem(id: 0, name: 'Apple', saturation: 15),
+        FoodItem(id: 1, name: 'Pizza Slice', saturation: 40),
+        FoodItem(id: 2, name: 'Burger', saturation: 50),
+        FoodItem(id: 3, name: 'Milk Carton', saturation: 10),
+        FoodItem(id: 4, name: 'Cake', saturation: 30),
+      ];
+      _isLoading = false;
+    });
   }
 
-  // 👈 LIVE BACKEND ACTION
+  // 👈 FAKED LOCAL ACTION
   Future<void> _feedTamagotchi(FoodItem food) async {
-    final success = await services.game.feed(food.id);
+    // Simulate a quick backend process delay
+    await Future.delayed(const Duration(milliseconds: 200));
+    
+    // Always succeed locally
+    const success = true; 
     
     if (success) {
       setState(() {
@@ -54,7 +63,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
         SnackBar(
           backgroundColor: Theme.of(context).colorScheme.secondary,
           content: Text(
-            'YUM! FED ${food.name} (+${food.saturation} SAT)!',
+            'YUM! FED ${food.name.toUpperCase()} (+${food.saturation} SAT)!',
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSecondary, 
               fontWeight: FontWeight.bold
@@ -87,7 +96,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface, // changed from deprecated .background
+      backgroundColor: colorScheme.surface, 
       floatingActionButton: const ChatNavigationTrigger(),
       body: Column(
         children: [
@@ -201,7 +210,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
                           ),
                           Expanded(
                             child: _isLoading
-                                ? Center(child: Text("LOADING...", style: TextStyle(color: colorScheme.onSurface)))
+                                ? Center(child: Text("LOADING...", style: TextStyle(color: colorScheme.onSurface, fontWeight: FontWeight.bold)))
                                 : _fridgeInventory.isEmpty
                                     ? Center(child: Text("FRIDGE IS EMPTY", style: TextStyle(color: colorScheme.onSurface.withOpacity(0.5), fontWeight: FontWeight.bold)))
                                     : ListView.builder(
@@ -210,6 +219,10 @@ class _KitchenScreenState extends State<KitchenScreen> {
                                         itemBuilder: (context, index) {
                                           final food = _fridgeInventory[index];
                                           final isSelected = _selectedFood?.id == food.id;
+                                          
+                                          // Wrap ID to fit 0-3 sprite availability if dummy item ID is higher
+                                          final spriteId = food.id % 4; 
+
                                           return _PixelButton(
                                             isSelected: isSelected,
                                             colorScheme: colorScheme,
@@ -221,9 +234,12 @@ class _KitchenScreenState extends State<KitchenScreen> {
                                                   child: Padding(
                                                     padding: const EdgeInsets.all(4.0),
                                                     child: Image.asset(
-                                                      'assets/sprites/${food.id}.png',
+                                                      'assets/Sprites/$spriteId.png',
                                                       fit: BoxFit.contain,
-                                                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.fastfood, size: 32),
+                                                      errorBuilder: (context, error, stackTrace) => Image.asset(
+                                                        'assets/Sprites/0.png', // Strict fallback to sprite 0 instead of generic Icon
+                                                        fit: BoxFit.contain,
+                                                      ),
                                                     ),
                                                   ),
                                                 ),
@@ -262,19 +278,19 @@ class _KitchenScreenState extends State<KitchenScreen> {
                       feedback: Material(
                         color: Colors.transparent,
                         child: Image.asset(
-                          'assets/sprites/${_selectedFood!.id}.png',
+                          'assets/Sprites/${_selectedFood!.id % 4}.png',
                           width: 80,
                           height: 80,
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.fastfood, size: 80),
+                          errorBuilder: (context, error, stackTrace) => Image.asset('assets/Sprites/0.png', width: 80, height: 80),
                         ),
                       ),
                       childWhenDragging: Opacity(
                         opacity: 0.2,
                         child: Image.asset(
-                          'assets/sprites/${_selectedFood!.id}.png',
+                          'assets/Sprites/${_selectedFood!.id % 4}.png',
                           width: 70,
                           height: 70,
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.fastfood, size: 70),
+                          errorBuilder: (context, error, stackTrace) => Image.asset('assets/Sprites/0.png', width: 70, height: 70),
                         ),
                       ),
                       child: Container(
@@ -287,10 +303,10 @@ class _KitchenScreenState extends State<KitchenScreen> {
                           ],
                         ),
                         child: Image.asset(
-                          'assets/sprites/${_selectedFood!.id}.png',
+                          'assets/Sprites/${_selectedFood!.id % 4}.png',
                           width: 60,
                           height: 60,
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.fastfood, size: 60),
+                          errorBuilder: (context, error, stackTrace) => Image.asset('assets/Sprites/0.png', width: 60, height: 60),
                         ),
                       ),
                     ),
