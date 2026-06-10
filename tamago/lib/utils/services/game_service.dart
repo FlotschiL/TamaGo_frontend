@@ -55,4 +55,3 @@ class GameService {
     return res.statusCode == 200;
   }
 }
-

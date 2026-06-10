@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tamago/pages/chatnavigation.dart';
-// These imports are kept so your project doesn't break, 
-// though we aren't using the service locator anymore!
-import 'package:tamago/utils/services/service_locator.dart';  
-import 'package:tamago/utils/services/model/foodItem.dart';
+import 'package:tamago/utils/services/service_locator.dart';
+// Wichtig: Importiere hier das neue InventoryItem Modell aus deinem TamaService
+import 'package:tamago/utils/services/tama_service.dart';
 
 class KitchenScreen extends StatefulWidget {
   const KitchenScreen({Key? key}) : super(key: key);
@@ -13,9 +12,10 @@ class KitchenScreen extends StatefulWidget {
 }
 
 class _KitchenScreenState extends State<KitchenScreen> {
-  List<FoodItem> _fridgeInventory = [];
+  final TamaService _tamaService = services.tama;
+
   bool _isLoading = true;
-  FoodItem? _selectedFood;
+  InventoryItem? _selectedItem; // Nutzt jetzt das kombinierte Modell
   bool _isFridgeVisible = true;
 
   @override
@@ -24,38 +24,45 @@ class _KitchenScreenState extends State<KitchenScreen> {
     _fetchFridgeInventory();
   }
 
-  // 👈 FAKED LOCAL FETCH
   Future<void> _fetchFridgeInventory() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
-    
-    // Simulate a short network delay
-    await Future.delayed(const Duration(milliseconds: 600));
-    
-    setState(() {
-      // Dummy data injection using your FoodItem model
-      _fridgeInventory = [
-        FoodItem(id: 0, name: 'Apple', saturation: 15),
-        FoodItem(id: 1, name: 'Pizza Slice', saturation: 40),
-        FoodItem(id: 2, name: 'Burger', saturation: 50),
-        FoodItem(id: 3, name: 'Milk Carton', saturation: 10),
-        FoodItem(id: 4, name: 'Cake', saturation: 30),
-      ];
-      _isLoading = false;
-    });
+
+    try {
+      await _tamaService.getFoodInventory();
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    } catch (e) {
+      debugPrint("Inventory Error: $e");
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to load fridge inventory.')),
+      );
+    }
   }
 
-  // 👈 FAKED LOCAL ACTION
-  Future<void> _feedTamagotchi(FoodItem food) async {
-    // Simulate a quick backend process delay
-    await Future.delayed(const Duration(milliseconds: 200));
-    
-    // Always succeed locally
-    const success = true; 
-    
-    if (success) {
+  // --- ITEM ANWENDEN (FOOD ODER POTION) ---
+  Future<void> _useItemOnTamagotchi(InventoryItem item) async {
+    try {
+      String successMessage = "";
+
+      if (item.type == InventoryItemType.food) {
+        // API Call für Füttern
+        await _tamaService.feedPet(item.id);
+        successMessage =
+            'YUM! FED ${item.name.toUpperCase()} (+${item.saturation} SAT)!';
+      } else {
+        // API Call für Trank nutzen
+        await _tamaService.usePotion(item.id);
+        successMessage = item.isPoison == true
+            ? 'OH NO! USED POISON: ${item.name.toUpperCase()}!'
+            : 'HEALED! USED ${item.name.toUpperCase()}!';
+      }
+
+      await services.game.getStatus();
       setState(() {
-        _fridgeInventory.removeWhere((item) => item.id == food.id);
-        _selectedFood = null;
+        _selectedItem = null;
       });
 
       if (!mounted) return;
@@ -63,21 +70,22 @@ class _KitchenScreenState extends State<KitchenScreen> {
         SnackBar(
           backgroundColor: Theme.of(context).colorScheme.secondary,
           content: Text(
-            'YUM! FED ${food.name.toUpperCase()} (+${food.saturation} SAT)!',
+            successMessage,
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSecondary, 
-              fontWeight: FontWeight.bold
+              color: Theme.of(context).colorScheme.onSecondary,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          duration: const Duration(seconds: 1),
+          duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
           shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         ),
       );
-    } else {
+    } catch (e) {
+      debugPrint("Use Item Error: $e");
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to feed your Tamagotchi. Try again!')),
+        const SnackBar(content: Text('Failed to use item. Try again!')),
       );
     }
   }
@@ -86,9 +94,45 @@ class _KitchenScreenState extends State<KitchenScreen> {
     setState(() {
       _isFridgeVisible = !_isFridgeVisible;
       if (!_isFridgeVisible) {
-        _selectedFood = null; 
+        _selectedItem = null;
       }
     });
+  }
+
+  // Helper für die Icons im Kühlschrank
+  IconData _getItemIcon(InventoryItem item) {
+    if (item.type == InventoryItemType.food) {
+      return Icons.fastfood;
+    } else {
+      return item.isPoison == true ? Icons.dangerous : Icons.local_drink;
+    }
+  }
+
+  // Helper für die Sprite-Pfade im Kühlschrank
+  String _getItemImagePath(InventoryItem item) {
+    final name = item.name.toLowerCase();
+    if (name.contains('banane') || name.contains('banana')) {
+      return 'assets/Sprites/0.png';
+    } else if (name.contains('burger')) {
+      return 'assets/Sprites/1.png';
+    } else if (name.contains('cake') || name.contains('kuchen')) {
+      return 'assets/Sprites/2.png';
+    } else if (name.contains('salat') || name.contains('salad')) {
+      return 'assets/Sprites/3.png';
+    }
+
+    // Fallback: Falls der Name nicht matcht, nutzen wir z.B. das erste Bild
+    // oder steuern es über den Index/ID, falls deine API IDs von 0-3 mitsendet.
+    return 'assets/Sprites/0.png';
+  }
+
+  // Helper für die Retro-Farben im Kühlschrank
+  Color _getItemColor(InventoryItem item) {
+    if (item.type == InventoryItemType.food) {
+      return Colors.orangeAccent;
+    } else {
+      return item.isPoison == true ? Colors.redAccent : Colors.greenAccent;
+    }
   }
 
   @override
@@ -96,7 +140,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface, 
+      backgroundColor: colorScheme.surface,
       floatingActionButton: const ChatNavigationTrigger(),
       body: Column(
         children: [
@@ -106,15 +150,20 @@ class _KitchenScreenState extends State<KitchenScreen> {
           Expanded(
             flex: 3,
             child: Center(
-              child: DragTarget<FoodItem>(
-                onAcceptWithDetails: (details) => _feedTamagotchi(details.data),
+              child: DragTarget<InventoryItem>(
+                onAcceptWithDetails: (details) =>
+                    _useItemOnTamagotchi(details.data),
                 builder: (context, candidateData, rejectedData) {
                   final isHovering = candidateData.isNotEmpty;
                   return Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: isHovering ? colorScheme.primary.withOpacity(0.1) : null,
-                      border: isHovering ? Border.all(width: 4, color: colorScheme.primary) : null,
+                      color: isHovering
+                          ? colorScheme.primary.withOpacity(0.1)
+                          : null,
+                      border: isHovering
+                          ? Border.all(width: 4, color: colorScheme.primary)
+                          : null,
                     ),
                     child: Center(
                       child: Image.asset(
@@ -125,7 +174,9 @@ class _KitchenScreenState extends State<KitchenScreen> {
                         height: 220,
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) => Icon(
-                          isHovering ? Icons.face_retouching_natural : Icons.catching_pokemon,
+                          isHovering
+                              ? Icons.face_retouching_natural
+                              : Icons.catching_pokemon,
                           size: 120,
                           color: colorScheme.onSurface,
                         ),
@@ -148,10 +199,18 @@ class _KitchenScreenState extends State<KitchenScreen> {
                   onTap: _toggleFridge,
                   child: Container(
                     margin: const EdgeInsets.symmetric(vertical: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: _isFridgeVisible ? colorScheme.primary : colorScheme.surface,
-                      border: Border.all(color: colorScheme.onSurface, width: 4),
+                      color: _isFridgeVisible
+                          ? colorScheme.primary
+                          : colorScheme.surface,
+                      border: Border.all(
+                        color: colorScheme.onSurface,
+                        width: 4,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: colorScheme.onSurface.withOpacity(0.3),
@@ -163,15 +222,23 @@ class _KitchenScreenState extends State<KitchenScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _isFridgeVisible ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                          _isFridgeVisible
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
                           size: 16,
-                          color: _isFridgeVisible ? colorScheme.onPrimary : colorScheme.onSurface,
+                          color: _isFridgeVisible
+                              ? colorScheme.onPrimary
+                              : colorScheme.onSurface,
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _isFridgeVisible ? 'HIDE_FRIDGE' : 'SHOW_FRIDGE',
+                          _isFridgeVisible
+                              ? 'HIDE INVENTORY'
+                              : 'SHOW INVENTORY',
                           style: TextStyle(
-                            color: _isFridgeVisible ? colorScheme.onPrimary : colorScheme.onSurface,
+                            color: _isFridgeVisible
+                                ? colorScheme.onPrimary
+                                : colorScheme.onSurface,
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
                             letterSpacing: 1,
@@ -189,18 +256,27 @@ class _KitchenScreenState extends State<KitchenScreen> {
                       decoration: BoxDecoration(
                         color: colorScheme.surface.withOpacity(0.85),
                         border: Border(
-                          top: BorderSide(color: colorScheme.onSurface, width: 6),
-                          bottom: BorderSide(color: colorScheme.onSurface, width: 2),
+                          top: BorderSide(
+                            color: colorScheme.onSurface,
+                            width: 6,
+                          ),
+                          bottom: BorderSide(
+                            color: colorScheme.onSurface,
+                            width: 2,
+                          ),
                         ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
                             color: colorScheme.primary,
                             child: Text(
-                              'FRIDGE_INVENTORY',
+                              'KITCHEN CABINET',
                               style: TextStyle(
                                 color: colorScheme.onPrimary,
                                 fontWeight: FontWeight.bold,
@@ -210,50 +286,96 @@ class _KitchenScreenState extends State<KitchenScreen> {
                           ),
                           Expanded(
                             child: _isLoading
-                                ? Center(child: Text("LOADING...", style: TextStyle(color: colorScheme.onSurface, fontWeight: FontWeight.bold)))
-                                : _fridgeInventory.isEmpty
-                                    ? Center(child: Text("FRIDGE IS EMPTY", style: TextStyle(color: colorScheme.onSurface.withOpacity(0.5), fontWeight: FontWeight.bold)))
-                                    : ListView.builder(
+                                ? Center(
+                                    child: Text(
+                                      "LOADING...",
+                                      style: TextStyle(
+                                        color: colorScheme.onSurface,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  )
+                                : ListenableBuilder(
+                                    listenable: _tamaService,
+                                    builder: (context, child) {
+                                      final inventory = _tamaService.inventory;
+
+                                      if (inventory.isEmpty) {
+                                        return Center(
+                                          child: Text(
+                                            "NO ITEMS OWNED",
+                                            style: TextStyle(
+                                              color: colorScheme.onSurface
+                                                  .withOpacity(0.5),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        );
+                                      }
+
+                                      return ListView.builder(
                                         scrollDirection: Axis.horizontal,
-                                        itemCount: _fridgeInventory.length,
+                                        itemCount: inventory.length,
                                         itemBuilder: (context, index) {
-                                          final food = _fridgeInventory[index];
-                                          final isSelected = _selectedFood?.id == food.id;
-                                          
-                                          // Wrap ID to fit 0-3 sprite availability if dummy item ID is higher
-                                          final spriteId = food.id % 4; 
+                                          final item = inventory[index];
+                                          final isSelected =
+                                              _selectedItem?.id == item.id &&
+                                              _selectedItem?.type == item.type;
+                                          final itemColor = _getItemColor(item);
 
                                           return _PixelButton(
                                             isSelected: isSelected,
                                             colorScheme: colorScheme,
-                                            onTap: () => setState(() => _selectedFood = food),
+                                            onTap: () => setState(
+                                              () => _selectedItem = item,
+                                            ),
                                             child: Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
                                               children: [
                                                 Expanded(
                                                   child: Padding(
-                                                    padding: const EdgeInsets.all(4.0),
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                          8.0,
+                                                        ),
                                                     child: Image.asset(
-                                                      'assets/Sprites/$spriteId.png',
+                                                      _getItemImagePath(item),
+                                                      filterQuality:
+                                                          FilterQuality.none,
                                                       fit: BoxFit.contain,
-                                                      errorBuilder: (context, error, stackTrace) => Image.asset(
-                                                        'assets/Sprites/0.png', // Strict fallback to sprite 0 instead of generic Icon
-                                                        fit: BoxFit.contain,
-                                                      ),
+                                                      errorBuilder:
+                                                          (
+                                                            context,
+                                                            error,
+                                                            stackTrace,
+                                                          ) => Icon(
+                                                            _getItemIcon(item),
+                                                            size: 32,
+                                                            color:
+                                                                _getItemColor(
+                                                                  item,
+                                                                ),
+                                                          ),
                                                     ),
                                                   ),
                                                 ),
-                                                const SizedBox(height: 2),
                                                 Text(
-                                                  food.name,
-                                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                                  item.name.toUpperCase(),
+                                                  style: const TextStyle(
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  textAlign: TextAlign.center,
                                                 ),
                                                 const SizedBox(height: 4),
                                               ],
                                             ),
                                           );
                                         },
-                                      ),
+                                      );
+                                    },
+                                  ),
                           ),
                         ],
                       ),
@@ -264,49 +386,78 @@ class _KitchenScreenState extends State<KitchenScreen> {
           ),
 
           // ==========================================
-          // BOTTOM: The Food Slot (Hand-off Area)
+          // BOTTOM: The Food/Potion Slot (Hand-off Area)
           // ==========================================
           Container(
             height: 140,
             width: double.infinity,
             color: colorScheme.secondary.withOpacity(0.2),
             child: Center(
-              child: _selectedFood == null
-                  ? Text('SELECT_ITEMS', style: TextStyle(color: colorScheme.primary.withOpacity(0.5)))
-                  : Draggable<FoodItem>(
-                      data: _selectedFood,
+              child: _selectedItem == null
+                  ? Text(
+                      'DRAG ITEM TO PET',
+                      style: TextStyle(
+                        color: colorScheme.primary.withOpacity(0.5),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  : Draggable<InventoryItem>(
+                      data: _selectedItem,
                       feedback: Material(
                         color: Colors.transparent,
                         child: Image.asset(
-                          'assets/Sprites/${_selectedFood!.id % 4}.png',
-                          width: 80,
-                          height: 80,
-                          errorBuilder: (context, error, stackTrace) => Image.asset('assets/Sprites/0.png', width: 80, height: 80),
+                          _getItemImagePath(_selectedItem!),
+                          width: 64,
+                          height: 64,
+                          filterQuality: FilterQuality.none,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            _getItemIcon(_selectedItem!),
+                            size: 64,
+                            color: _getItemColor(_selectedItem!),
+                          ),
                         ),
                       ),
                       childWhenDragging: Opacity(
                         opacity: 0.2,
                         child: Image.asset(
-                          'assets/Sprites/${_selectedFood!.id % 4}.png',
-                          width: 70,
-                          height: 70,
-                          errorBuilder: (context, error, stackTrace) => Image.asset('assets/Sprites/0.png', width: 70, height: 70),
+                          _getItemImagePath(_selectedItem!),
+                          width: 56,
+                          height: 56,
+                          filterQuality: FilterQuality.none,
                         ),
                       ),
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: colorScheme.surface.withOpacity(0.9),
-                          border: Border.all(width: 4, color: colorScheme.primary),
+                          border: Border.all(
+                            width: 4,
+                            color: colorScheme.primary,
+                          ),
                           boxShadow: [
-                            BoxShadow(color: colorScheme.onSurface, offset: const Offset(6, 6)),
+                            BoxShadow(
+                              color: colorScheme.onSurface,
+                              offset: const Offset(6, 6),
+                            ),
                           ],
                         ),
-                        child: Image.asset(
-                          'assets/Sprites/${_selectedFood!.id % 4}.png',
-                          width: 60,
-                          height: 60,
-                          errorBuilder: (context, error, stackTrace) => Image.asset('assets/Sprites/0.png', width: 60, height: 60),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _getItemIcon(_selectedItem!),
+                              size: 48,
+                              color: _getItemColor(_selectedItem!),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _selectedItem!.name.toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -330,28 +481,26 @@ class _PixelButton extends StatelessWidget {
     required this.isSelected,
     required this.colorScheme,
     required this.onTap,
-  });
+    Key? key,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-        width: 80,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        width: 85,
         decoration: BoxDecoration(
-          color: isSelected ? colorScheme.secondary : colorScheme.surface,
+          color: isSelected
+              ? colorScheme.primary.withOpacity(0.2)
+              : colorScheme.surface,
           border: Border.all(
             color: isSelected ? colorScheme.primary : colorScheme.onSurface,
-            width: 4,
+            width: isSelected ? 3 : 2,
           ),
           boxShadow: [
-            if (!isSelected)
-              BoxShadow(
-                color: colorScheme.onSurface.withOpacity(0.2),
-                offset: const Offset(4, 4),
-              ),
+            BoxShadow(color: colorScheme.onSurface, offset: const Offset(3, 3)),
           ],
         ),
         child: child,

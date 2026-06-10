@@ -7,14 +7,19 @@ class StoreService {
   // GET /api/shop/items
   Future<Map<String, dynamic>> getShopAssortment() async {
     final res = await _client.dio.get('/api/shop/items');
-    return res.data; // Enthält "food" und "potions" Listen
+    return res.data; // Contains "food" and "potions" lists
   }
 
   // GET /api/tama/inventory
   Future<int> getBalance() async {
     final res = await _client.dio.get('/api/tama/inventory');
-    // Laut Doku ist balance direkt im Inventory-Objekt
     return res.data['balance'] ?? 0;
+  }
+
+  // GET /api/tama/inventory (Extracting food items list for the Kitchen)
+  Future<List<dynamic>> getFoodInventory() async {
+    final res = await _client.dio.get('/api/tama/inventory');
+    return res.data['food'] ?? [];
   }
 
   // POST /api/shop/buy/food
@@ -35,5 +40,10 @@ class StoreService {
       "isPoison": isPoison,
     });
     return res.data['balance'];
+  }
+
+  // POST /api/tama/feed/{foodId}
+  Future<void> feedPet(int foodId) async {
+    await _client.dio.post('/api/tama/feed/$foodId');
   }
 }
