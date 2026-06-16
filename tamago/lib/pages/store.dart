@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+// --- ADD THESE IMPORTS ---
+import 'package:tamago/utils/services/store_service.dart';
+import 'package:tamago/utils/services/service_locator.dart';
 
 // --- ITEM TYPES ---
 enum ItemType { food, potion }
@@ -8,6 +11,7 @@ class ShopItem {
   final String name;
   final int price;
   final ItemType type;
+  final String imagePath;
 
   final int? saturation;
   final bool? isPoison;
@@ -16,6 +20,7 @@ class ShopItem {
     required this.name,
     required this.price,
     required this.type,
+    required this.imagePath,
     this.saturation,
     this.isPoison,
   });
@@ -29,7 +34,10 @@ class StoreScreen extends StatefulWidget {
 }
 
 class _StoreScreenState extends State<StoreScreen> {
-  final StoreService _storeService = StoreService();
+  // --- INJECT REAL API CLIENT ---
+  // Note: If your service locator uses a different name (like 'sl' or 'getIt'),
+  // change `locator` to match your setup.
+  final StoreService _storeService = services.store;
 
   int _userCoins = 0;
   bool _isLoading = false;
@@ -64,12 +72,29 @@ class _StoreScreenState extends State<StoreScreen> {
       // --- FOOD MAPPING ---
       if (assortment['food'] != null) {
         for (var f in assortment['food']) {
+          final String itemName = f['name']?.toString() ?? '';
+          String imagePath = 'assets/Sprites/0.png'; // Fallback
+
+          // Zuordnung anhand des Namens statt des Listen-Index
+          final normalized = itemName.toLowerCase();
+          if (normalized.contains('banane') || normalized.contains('banana')) {
+            imagePath = 'assets/Sprites/0.png';
+          } else if (normalized.contains('burger')) {
+            imagePath = 'assets/Sprites/1.png';
+          } else if (normalized.contains('kuchen') ||
+              normalized.contains('cake')) {
+            imagePath = 'assets/Sprites/2.png';
+          } else if (normalized.contains('taco')) {
+            imagePath = 'assets/Sprites/3.png';
+          }
+
           items.add(
             ShopItem(
-              name: f['name'],
-              price: f['price'],
+              name: itemName,
+              price: f['price'] ?? 0,
               saturation: f['saturation'],
               type: ItemType.food,
+              imagePath: imagePath,
             ),
           );
         }
@@ -84,6 +109,10 @@ class _StoreScreenState extends State<StoreScreen> {
               price: p['price'],
               isPoison: p['isPoison'],
               type: ItemType.potion,
+              // Falls du für Tränke auch Sprites hast (z.B. 4.png), hier eintragen:
+              imagePath: p['isPoison'] == true
+                  ? 'assets/Sprites/Posion.png' // Beispielhaft Salat/Gift
+                  : 'assets/Sprites/0.png',
             ),
           );
         }
@@ -96,9 +125,7 @@ class _StoreScreenState extends State<StoreScreen> {
       });
     } catch (e) {
       debugPrint("Store Error: $e");
-
       _showPixelDialog("ERROR", "CONNECTION_FAILED");
-
       setState(() => _isLoading = false);
     }
   }
@@ -106,7 +133,7 @@ class _StoreScreenState extends State<StoreScreen> {
   // --- PURCHASE ITEM ---
   Future<void> _purchaseItem(ShopItem item) async {
     if (_userCoins < item.price) {
-      _showPixelDialog("ERROR", "NOT_ENOUGH_COINS!");
+      _showPixelDialog("ERROR", "NOT ENOUGH COINS!");
       return;
     }
 
@@ -131,13 +158,11 @@ class _StoreScreenState extends State<StoreScreen> {
         _userCoins = newBalance;
       });
 
-      _showPixelDialog(
-        "SUCCESS",
-        "${item.name.toUpperCase()} BOUGHT!",
-      );
+      await services.tama.getFoodInventory();
+
+      _showPixelDialog("SUCCESS", "${item.name.toUpperCase()} BOUGHT!");
     } catch (e) {
       debugPrint("Purchase Error: $e");
-
       _showPixelDialog("ERROR", "PURCHASE_FAILED");
     }
   }
@@ -150,10 +175,7 @@ class _StoreScreenState extends State<StoreScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: colorScheme.surface,
-        shape: Border.all(
-          color: colorScheme.onSurface,
-          width: 4,
-        ),
+        shape: Border.all(color: colorScheme.onSurface, width: 4),
         title: Text(
           title,
           style: TextStyle(
@@ -163,24 +185,16 @@ class _StoreScreenState extends State<StoreScreen> {
         ),
         content: Text(
           message,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: colorScheme.secondary,
-                border: Border.all(
-                  color: colorScheme.onSurface,
-                  width: 2,
-                ),
+                border: Border.all(color: colorScheme.onSurface, width: 2),
               ),
               child: Text(
                 "OK",
@@ -201,11 +215,8 @@ class _StoreScreenState extends State<StoreScreen> {
     switch (item.type) {
       case ItemType.food:
         return Icons.fastfood;
-
       case ItemType.potion:
-        return item.isPoison == true
-            ? Icons.dangerous
-            : Icons.local_drink;
+        return item.isPoison == true ? Icons.dangerous : Icons.local_drink;
     }
   }
 
@@ -214,11 +225,8 @@ class _StoreScreenState extends State<StoreScreen> {
     switch (item.type) {
       case ItemType.food:
         return Colors.orangeAccent;
-
       case ItemType.potion:
-        return item.isPoison == true
-            ? Colors.redAccent
-            : Colors.greenAccent;
+        return item.isPoison == true ? Colors.redAccent : Colors.greenAccent;
     }
   }
 
@@ -227,11 +235,8 @@ class _StoreScreenState extends State<StoreScreen> {
     switch (item.type) {
       case ItemType.food:
         return "SATURATION +${item.saturation}";
-
       case ItemType.potion:
-        return item.isPoison == true
-            ? "POISON EFFECT"
-            : "HEALING EFFECT";
+        return item.isPoison == true ? "POISON EFFECT" : "HEALING EFFECT";
     }
   }
 
@@ -246,25 +251,18 @@ class _StoreScreenState extends State<StoreScreen> {
           // --- HEADER ---
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              vertical: 20,
-              horizontal: 16,
-            ),
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
             decoration: BoxDecoration(
               color: colorScheme.surface,
               border: Border(
-                bottom: BorderSide(
-                  color: colorScheme.onSurface,
-                  width: 4,
-                ),
+                bottom: BorderSide(color: colorScheme.onSurface, width: 4),
               ),
             ),
             child: Row(
-              mainAxisAlignment:
-                  MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "MARKET_PLAZA",
+                  "MARKET PLAZA",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -274,12 +272,8 @@ class _StoreScreenState extends State<StoreScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color:
-                        colorScheme.secondary.withOpacity(0.2),
-                    border: Border.all(
-                      color: colorScheme.onSurface,
-                      width: 2,
-                    ),
+                    color: colorScheme.secondary.withOpacity(0.2),
+                    border: Border.all(color: colorScheme.onSurface, width: 2),
                   ),
                   child: Row(
                     children: [
@@ -305,27 +299,16 @@ class _StoreScreenState extends State<StoreScreen> {
 
           // --- LOADING ---
           if (_isLoading)
-            const Expanded(
-              child: Center(
-                child: CircularProgressIndicator(),
-              ),
-            )
-
+            const Expanded(child: Center(child: CircularProgressIndicator()))
           // --- EMPTY ---
           else if (_availableItems.isEmpty)
-            const Expanded(
-              child: Center(
-                child: Text("NO_ITEMS_AVAILABLE"),
-              ),
-            )
-
+            const Expanded(child: Center(child: Text("NO ITEMS AVAILABLE")))
           // --- GRID ---
           else
             Expanded(
               child: GridView.builder(
                 padding: const EdgeInsets.all(16),
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
@@ -334,11 +317,7 @@ class _StoreScreenState extends State<StoreScreen> {
                 itemCount: _availableItems.length,
                 itemBuilder: (context, index) {
                   final item = _availableItems[index];
-
-                  return _buildStoreCard(
-                    item,
-                    colorScheme,
-                  );
+                  return _buildStoreCard(item, colorScheme);
                 },
               ),
             ),
@@ -348,41 +327,35 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   // --- STORE CARD ---
-  Widget _buildStoreCard(
-    ShopItem item,
-    ColorScheme colorScheme,
-  ) {
+  Widget _buildStoreCard(ShopItem item, ColorScheme colorScheme) {
     final itemColor = _getItemColor(item);
 
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        border: Border.all(
-          color: colorScheme.onSurface,
-          width: 4,
-        ),
+        border: Border.all(color: colorScheme.onSurface, width: 4),
         boxShadow: [
-          BoxShadow(
-            color: colorScheme.onSurface,
-            offset: const Offset(4, 4),
-          ),
+          BoxShadow(color: colorScheme.onSurface, offset: const Offset(4, 4)),
         ],
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
             child: Container(
               color: itemColor.withOpacity(0.1),
-              child: Icon(
-                _getItemIcon(item),
-                size: 48,
-                color: itemColor,
+              padding: const EdgeInsets.all(12), // Etwas Platz zum Rand lassen
+              child: Image.asset(
+                item.imagePath,
+                filterQuality: FilterQuality.none, // Perfekt für Pixel-Art!
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  // Fallback, falls ein Pfad mal nicht existiert
+                  return Icon(_getItemIcon(item), size: 48, color: itemColor);
+                },
               ),
             ),
           ),
-
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(
@@ -395,23 +368,17 @@ class _StoreScreenState extends State<StoreScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-
                 const SizedBox(height: 4),
-
                 Text(
                   _getItemDescription(item),
                   style: const TextStyle(fontSize: 8),
                   textAlign: TextAlign.center,
                 ),
-
                 const SizedBox(height: 8),
-
                 GestureDetector(
                   onTap: () => _purchaseItem(item),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
                       color: colorScheme.primary,
                       border: Border.all(
@@ -420,24 +387,19 @@ class _StoreScreenState extends State<StoreScreen> {
                       ),
                     ),
                     child: Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Icon(
                           Icons.monetization_on,
                           color: Colors.amber,
                           size: 14,
                         ),
-
                         const SizedBox(width: 4),
-
                         Text(
                           "${item.price}",
                           style: TextStyle(
-                            color:
-                                colorScheme.onPrimary,
-                            fontWeight:
-                                FontWeight.bold,
+                            color: colorScheme.onPrimary,
+                            fontWeight: FontWeight.bold,
                             fontSize: 12,
                           ),
                         ),
@@ -454,74 +416,4 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 }
 
-// ---------------------------------------------------
-// MOCK STORE SERVICE
-// ---------------------------------------------------
-
-class StoreService {
-  Future<int> getBalance() async {
-    await Future.delayed(
-      const Duration(milliseconds: 500),
-    );
-
-    return 1250;
-  }
-
-  Future<Map<String, dynamic>>
-      getShopAssortment() async {
-    await Future.delayed(
-      const Duration(milliseconds: 800),
-    );
-
-    return {
-      "food": [
-        {
-          "name": "Pixel Cake",
-          "price": 50,
-          "saturation": 25,
-        },
-        {
-          "name": "Burger",
-          "price": 80,
-          "saturation": 40,
-        },
-      ],
-      "potions": [
-        {
-          "name": "Health Potion",
-          "price": 120,
-          "isPoison": false,
-        },
-        {
-          "name": "Poison Flask",
-          "price": 90,
-          "isPoison": true,
-        },
-      ],
-    };
-  }
-
-  Future<int> buyFood(
-    String name,
-    int price,
-    int saturation,
-  ) async {
-    await Future.delayed(
-      const Duration(milliseconds: 400),
-    );
-
-    return 1250 - price;
-  }
-
-  Future<int> buyPotion(
-    String name,
-    int price,
-    bool isPoison,
-  ) async {
-    await Future.delayed(
-      const Duration(milliseconds: 400),
-    );
-
-    return 1250 - price;
-  }
-}
+// NOTE: The mock StoreService class that was previously at the bottom has been removed!
