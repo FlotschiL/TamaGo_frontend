@@ -71,24 +71,32 @@ class _StoreScreenState extends State<StoreScreen> {
 
       // --- FOOD MAPPING ---
       if (assortment['food'] != null) {
-        int foodIndex = 0;
         for (var f in assortment['food']) {
-          // Falls die API mehr als 4 Items liefert, verhindert % 4 einen Absturz
-          int spriteId = foodIndex % 4;
+          final String itemName = f['name']?.toString() ?? '';
+          String imagePath = 'assets/Sprites/0.png'; // Fallback
 
-          // Alternativ nach Namen mappen, falls die API-Reihenfolge nicht fix ist:
-          // if (f['name'].toString().toLowerCase() == 'banana') spriteId = 0;
+          // Zuordnung anhand des Namens statt des Listen-Index
+          final normalized = itemName.toLowerCase();
+          if (normalized.contains('banane') || normalized.contains('banana')) {
+            imagePath = 'assets/Sprites/0.png';
+          } else if (normalized.contains('burger')) {
+            imagePath = 'assets/Sprites/1.png';
+          } else if (normalized.contains('kuchen') ||
+              normalized.contains('cake')) {
+            imagePath = 'assets/Sprites/2.png';
+          } else if (normalized.contains('taco')) {
+            imagePath = 'assets/Sprites/3.png';
+          }
 
           items.add(
             ShopItem(
-              name: f['name'],
-              price: f['price'],
+              name: itemName,
+              price: f['price'] ?? 0,
               saturation: f['saturation'],
               type: ItemType.food,
-              imagePath: 'assets/Sprites/$spriteId.png', // <-- Dynamischer Pfad
+              imagePath: imagePath,
             ),
           );
-          foodIndex++;
         }
       }
 
@@ -333,7 +341,7 @@ class _StoreScreenState extends State<StoreScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-Expanded(
+          Expanded(
             child: Container(
               color: itemColor.withOpacity(0.1),
               padding: const EdgeInsets.all(12), // Etwas Platz zum Rand lassen

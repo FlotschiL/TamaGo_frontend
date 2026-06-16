@@ -117,7 +117,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
       return 'assets/Sprites/1.png';
     } else if (name.contains('cake') || name.contains('kuchen')) {
       return 'assets/Sprites/2.png';
-    } else if (name.contains('salat') || name.contains('salad')) {
+    } else if (name.contains('taco') || name.contains('taco')) {
       return 'assets/Sprites/3.png';
     }
 
@@ -444,10 +444,19 @@ class _KitchenScreenState extends State<KitchenScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              _getItemIcon(_selectedItem!),
-                              size: 48,
-                              color: _getItemColor(_selectedItem!),
+                            Image.asset(
+                              _getItemImagePath(_selectedItem!),
+                              width: 48,
+                              height: 48,
+                              filterQuality: FilterQuality
+                                  .none, // Pixel-Art scharf halten!
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Icon(
+                                    _getItemIcon(_selectedItem!),
+                                    size: 48,
+                                    color: _getItemColor(_selectedItem!),
+                                  ),
                             ),
                             const SizedBox(height: 4),
                             Text(
