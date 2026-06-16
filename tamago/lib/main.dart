@@ -1,135 +1,87 @@
 import 'package:flutter/material.dart';
-import "package:tamago/utils/RootInitializer.dart";
-import "package:tamago/pages/living.dart";
-import "package:tamago/pages/kitchen.dart";
-import "package:tamago/pages/friends.dart";
-import "package:tamago/pages/store.dart";
-import 'package:tamago/Objects/game_state.dart';
-import "package:tamago/utils/services/model/friend.dart";
-import "package:tamago/utils/theme/app_colors.dart";
+import 'package:tamago/pages/chatnavigation.dart';
+import 'package:tamago/utils/services/service_locator.dart';  
 
-import 'package:tamago/utils/services/service_locator.dart';
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const TamagotchiApp());
+// --- DUMMY MODEL ---
+class MinigameItem {
+  final int id;
+  final String name;
+  final String routeName;
+
+  MinigameItem({required this.id, required this.name, required this.routeName});
 }
 
-class TamagotchiApp extends StatelessWidget {
-  const TamagotchiApp({super.key});
+class GameRoomScreen extends StatefulWidget {
+  const GameRoomScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'TamaGo!',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: false,
-        colorScheme: myColorScheme, // Your custom scheme
-        // Force a blocky/monospace font globally for that retro feel
-        fontFamily: 'monospace', 
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: AppColors.textDark, fontWeight: FontWeight.bold),
-          bodyMedium: TextStyle(color: AppColors.textDark),
-        ),
-      ),
-      home: const RootInitializer(),
-    );
-  }
+  State<GameRoomScreen> createState() => _GameRoomScreenState();
 }
 
-class MainGameNavigation extends StatefulWidget {
-  const MainGameNavigation({super.key});
-
-  @override
-  State<MainGameNavigation> createState() => _MainGameNavigationState();
-}
-
-class _MainGameNavigationState extends State<MainGameNavigation> {
-  int _currentIndex = 0;
-  GameState? _gameState;
-
-  final List<Widget> _rooms = [
-    const LivingRoomPage(),
-    const KitchenScreen(),
-    const FriendsPage(), // Assuming this is your bath page
-    const StoreScreen(),
-  ];
+class _GameRoomScreenState extends State<GameRoomScreen> {
+  List<MinigameItem> _gameInventory = [];
+  bool _isLoading = true;
+  MinigameItem? _selectedGame;
+  int _totalCoins = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadGameState();
+    _fetchGameInventory();
   }
 
-  Future<void> _loadGameState() async {
-    try {
-      final state = await services.game.getStatus();
-      setState(() => _gameState = state);
-    } catch (e) {
-      debugPrint("Failed to load: $e");
+  Future<void> _fetchGameInventory() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 600));
+    setState(() {
+      _gameInventory = [
+        MinigameItem(id: 0, name: 'Runner', routeName: '/runner'),
+        MinigameItem(id: 1, name: 'Jump', routeName: '/jump'),
+        MinigameItem(id: 2, name: 'Puzzle', routeName: '/puzzle'),
+      ];
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _launchGame(MinigameItem game) async {
+    setState(() => _selectedGame = null);
+
+    final dynamic result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DummyMinigameScreen(gameName: game.name),
+      ),
+    );
+
+    if (result != null && result is int) {
+      await _saveCoinsToBackend(game.name, result);
     }
   }
 
-  void _handleLogout() {
-    services.auth.logout();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const RootInitializer()),
-      (route) => false,
-    );
-  }
+  Future<void> _saveCoinsToBackend(String gameName, int score) async {
+    final int coinsEarned = (score / 10).floor();
+    await Future.delayed(const Duration(milliseconds: 400));
+    
+    setState(() {
+      _totalCoins += coinsEarned;
+    });
 
-  // --- RETRO RENAME DIALOG ---
-  Future<void> _showRenameDialog() async {
-    final controller = TextEditingController(text: _gameState?.name ?? '');
-    final colorScheme = Theme.of(context).colorScheme;
-
-    final newName = await showGeneralDialog<String>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: '',
-      pageBuilder: (context, anim1, anim2) => Container(), // Required
-      transitionBuilder: (context, a1, a2, child) {
-        return Transform.scale(
-          scale: a1.value,
-          child: AlertDialog(
-            backgroundColor: colorScheme.surface,
-            shape: Border.all(color: colorScheme.onSurface, width: 4), // Sharp corners
-            title: Text("NAME_YOUR_PET", style: TextStyle(color: colorScheme.primary, fontSize: 14)),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: colorScheme.background,
-                border: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: colorScheme.onSurface, width: 2)),
-              ),
-            ),
-            actions: [
-              _PixelActionBtn(
-                label: "CANCEL", 
-                onPressed: () => Navigator.pop(context), 
-                color: colorScheme.surface
-              ),
-              _PixelActionBtn(
-                label: "SAVE", 
-                onPressed: () => Navigator.pop(context, controller.text.trim()), 
-                color: colorScheme.secondary
-              ),
-            ],
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Theme.of(context).colorScheme.secondary,
+        content: Text(
+          '!! $gameName COMPLETED !! EARNED $coinsEarned COINS',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSecondary, 
+            fontWeight: FontWeight.bold
           ),
-        );
-      },
+        ),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      ),
     );
-
-    if (newName != null && newName.isNotEmpty && newName != _gameState?.name) {
-      try {
-        await services.game.rename(newName);
-        _loadGameState();
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('RENAME_FAILED')));
-      }
-    }
   }
 
   @override
@@ -137,124 +89,347 @@ class _MainGameNavigationState extends State<MainGameNavigation> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
-        child: Container(
-          decoration: BoxDecoration(
-            color: colorScheme.primary,
-            border: Border(bottom: BorderSide(color: colorScheme.onSurface, width: 4)),
-          ),
-          child: AppBar(
-            elevation: 0,
-            backgroundColor: Colors.transparent,
-            centerTitle: true,
-            title: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  (_gameState?.name ?? 'TAMAGOTCHI').toUpperCase(),
-                  style: TextStyle(color: colorScheme.onPrimary, fontWeight: FontWeight.bold, letterSpacing: 1),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.edit, size: 18),
-                  onPressed: _showRenameDialog,
-                ),
-              ],
-            ),
-            actions: [
-              PopupMenuButton<String>(
-                icon: Icon(Icons.account_box, color: colorScheme.onPrimary, size: 30),
+      backgroundColor: colorScheme.surface, 
+      floatingActionButton: const ChatNavigationTrigger(),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ==========================================
+            // 1. RETRO STATUS BAR (Header)
+            // ==========================================
+            Container(
+              margin: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
                 color: colorScheme.surface,
-                offset: const Offset(0, 50),
-                shape: Border.all(color: colorScheme.onSurface, width: 3), // Pixel menu
-                onSelected: (value) {
-                  if (value == 'logout') _handleLogout();
-                },
-                itemBuilder: (context) => [
-                  _buildPixelPopupItem('profile', Icons.person, 'PROFILE'),
-                  _buildPixelPopupItem('settings', Icons.settings, 'SETTINGS'),
-                  const PopupMenuDivider(height: 1),
-                  _buildPixelPopupItem('logout', Icons.logout, 'LOGOUT', isDestructive: true),
+                border: Border.all(color: colorScheme.onSurface, width: 4),
+                boxShadow: [
+                  BoxShadow(color: colorScheme.onSurface, offset: const Offset(4, 4)),
                 ],
               ),
-            ],
-          ),
-        ),
-      ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _rooms,
-      ),
-      // --- CUSTOM PIXEL BOTTOM NAV ---
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: colorScheme.onSurface, // The "Outline" color
-          border: Border(top: BorderSide(color: colorScheme.onSurface, width: 2)),
-        ),
-        child: BottomNavigationBar(
-          backgroundColor: colorScheme.primary,
-          type: BottomNavigationBarType.fixed,
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          selectedItemColor: colorScheme.onPrimary,
-          unselectedItemColor: colorScheme.onPrimary.withOpacity(0.5),
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
-          unselectedLabelStyle: const TextStyle(fontSize: 10),
-          elevation: 0,
-          items: [
-            _buildPixelNavItem(Icons.chair, 'HOME'),
-            _buildPixelNavItem(Icons.restaurant, 'EAT'),
-            _buildPixelNavItem(Icons.verified_user, 'FRIENDS'),
-            _buildPixelNavItem(Icons.shopping_cart, 'SHOP'),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '📍 ARCADE_ROOM',
+                    style: TextStyle(
+                      color: colorScheme.onSurface,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    color: colorScheme.primary,
+                    child: Text(
+                      '🪙 $_totalCoins',
+                      style: TextStyle(
+                        color: colorScheme.onPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ==========================================
+            // 2. UNIFIED CONSOLE UNIT (Center System)
+            // ==========================================
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.onSurface.withOpacity(0.05),
+                    border: Border.all(color: colorScheme.onSurface, width: 4),
+                  ),
+                  child: Column(
+                    children: [
+                      // Game Screen Viewport
+                      Expanded(
+                        child: Center(
+                          child: Image.asset(
+                            'assets/animations/BaseTama/BaseTama1.png',
+                            width: 180,
+                            height: 180,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                              Icons.videogame_asset,
+                              size: 100,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      // Integrated Cartridge Drop Zone / Slot
+                      DragTarget<MinigameItem>(
+                        onAcceptWithDetails: (details) => _launchGame(details.data),
+                        builder: (context, candidateData, rejectedData) {
+                          final isHovering = candidateData.isNotEmpty;
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            height: 100,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: isHovering 
+                                  ? colorScheme.secondary.withOpacity(0.4) 
+                                  : colorScheme.surface,
+                              border: Border(
+                                top: BorderSide(color: colorScheme.onSurface, width: 4),
+                              ),
+                            ),
+                            child: Center(
+                              child: isHovering
+                                  ? Text(
+                                      '👉 DROP TO BOOT GAME 👈',
+                                      style: TextStyle(
+                                        color: colorScheme.primary,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1,
+                                      ),
+                                    )
+                                  : Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.arrow_downward, color: colorScheme.onSurface.withOpacity(0.5), size: 18),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'INSERT CARTRIDGE HERE',
+                                          style: TextStyle(
+                                            color: colorScheme.onSurface.withOpacity(0.6),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                            letterSpacing: 1,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Icon(Icons.arrow_downward, color: colorScheme.onSurface.withOpacity(0.5), size: 18),
+                                      ],
+                                    ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // ==========================================
+            // 3. PHYSICAL CARTRIDGE DOCK & RACK (Bottom)
+            // ==========================================
+            Container(
+              margin: const EdgeInsets.all(12),
+              height: 200,
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                border: Border.all(color: colorScheme.onSurface, width: 4),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title Banner for the shelf
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    color: colorScheme.onSurface,
+                    child: Text(
+                      'MY_GAME_SHELF',
+                      style: TextStyle(
+                        color: colorScheme.surface,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  
+                  // The Split View inside the rack
+                  Expanded(
+                    child: Row(
+                      children: [
+                        // Left Column: The Unlocked Games Picker
+                        Expanded(
+                          flex: 3,
+                          child: _isLoading
+                              ? Center(child: Text("LOADING...", style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.onSurface)))
+                              : _gameInventory.isEmpty
+                                  ? Center(child: Text("EMPTY SHELF", style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.onSurface.withOpacity(0.4))))
+                                  : ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: _gameInventory.length,
+                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      itemBuilder: (context, index) {
+                                        final game = _gameInventory[index];
+                                        final isSelected = _selectedGame?.id == game.id;
+                                        final spriteId = game.id % 4;
+
+                                        return _PixelButton(
+                                          isSelected: isSelected,
+                                          colorScheme: colorScheme,
+                                          onTap: () => setState(() => _selectedGame = game),
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Expanded(
+                                                child: Padding(
+                                                  padding: const EdgeInsets.all(6.0),
+                                                  child: Image.asset(
+                                                    'assets/Sprites/$spriteId.png',
+                                                    fit: BoxFit.contain,
+                                                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.album, size: 28),
+                                                  ),
+                                                ),
+                                              ),
+                                              Text(
+                                                game.name.toUpperCase(),
+                                                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
+                                              ),
+                                              const SizedBox(height: 6),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                        ),
+                        
+                        // Right Divider Line
+                        Container(width: 4, color: colorScheme.onSurface),
+
+                        // Right Column: The "Active Hand" (Draggable Slot)
+                        Expanded(
+                          flex: 2,
+                          child: Container(
+                            color: colorScheme.secondary.withOpacity(0.1),
+                            child: Center(
+                              child: _selectedGame == null
+                                  ? Text(
+                                      'GRAB\nGAME',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(fontSize: 10, color: colorScheme.onSurface.withOpacity(0.4), fontWeight: FontWeight.bold),
+                                    )
+                                  : Draggable<MinigameItem>(
+                                      data: _selectedGame,
+                                      feedback: Material(
+                                        color: Colors.transparent,
+                                        child: Image.asset(
+                                          'assets/Sprites/${_selectedGame!.id % 4}.png',
+                                          width: 65,
+                                          height: 65,
+                                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.album, size: 40),
+                                        ),
+                                      ),
+                                      childWhenDragging: Opacity(
+                                        opacity: 0.2,
+                                        child: Image.asset(
+                                          'assets/Sprites/${_selectedGame!.id % 4}.png',
+                                          width: 55,
+                                          height: 55,
+                                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.album, size: 40),
+                                        ),
+                                      ),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.surface,
+                                          border: Border.all(width: 3, color: colorScheme.primary),
+                                          boxShadow: [
+                                            BoxShadow(color: colorScheme.onSurface, offset: const Offset(4, 4)),
+                                          ],
+                                        ),
+                                        child: Image.asset(
+                                          'assets/Sprites/${_selectedGame!.id % 4}.png',
+                                          width: 45,
+                                          height: 45,
+                                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.album, size: 30),
+                                        ),
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  BottomNavigationBarItem _buildPixelNavItem(IconData icon, String label) {
-    return BottomNavigationBarItem(
-      icon: Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Icon(icon, size: 28),
-      ),
-      label: label,
-    );
-  }
+// --- Helper Widget for Retro Block Buttons ---
+class _PixelButton extends StatelessWidget {
+  final Widget child;
+  final bool isSelected;
+  final ColorScheme colorScheme;
+  final VoidCallback onTap;
 
-  PopupMenuItem<String> _buildPixelPopupItem(String value, IconData icon, String label, {bool isDestructive = false}) {
-    return PopupMenuItem(
-      value: value,
-      child: Row(
-        children: [
-          Icon(icon, color: isDestructive ? Colors.red : null, size: 18),
-          const SizedBox(width: 10),
-          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDestructive ? Colors.red : null)),
-        ],
+  const _PixelButton({
+    required this.child,
+    required this.isSelected,
+    required this.colorScheme,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 16),
+        width: 75,
+        decoration: BoxDecoration(
+          color: isSelected ? colorScheme.secondary : colorScheme.surface,
+          border: Border.all(
+            color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+            width: 4,
+          ),
+          boxShadow: [
+            if (!isSelected)
+              BoxShadow(
+                color: colorScheme.onSurface.withOpacity(0.15),
+                offset: const Offset(3, 3),
+              ),
+          ],
+        ),
+        child: child,
       ),
     );
   }
 }
 
-// --- Internal Helper for Pixel Buttons ---
-class _PixelActionBtn extends StatelessWidget {
-  final String label;
-  final VoidCallback onPressed;
-  final Color color;
-
-  const _PixelActionBtn({required this.label, required this.onPressed, required this.color});
+// --- DUMMY MINIGAME SCREEN ---
+class DummyMinigameScreen extends StatelessWidget {
+  final String gameName;
+  const DummyMinigameScreen({super.key, required this.gameName});
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: onPressed,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: color,
-          border: Border.all(color: Theme.of(context).colorScheme.onSurface, width: 2),
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('PLAYING: $gameName', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 40),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
+              onPressed: () => Navigator.pop(context, 180), // Emits 180 score points
+              child: const Text('WIN GAME & COLLECT COINS'),
+            )
+          ],
         ),
-        child: Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
       ),
     );
   }
